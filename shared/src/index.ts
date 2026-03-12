@@ -11,6 +11,7 @@ export * from "./auth.types.ts";
 export * from "./chat.types.ts";
 export * from "./comment.types.ts";
 export * from "./game.types.ts";
+export * from "./invite.types.ts";
 export * from "./message.types.ts";
 export * from "./socket.types.ts";
 export * from "./thread.types.ts";

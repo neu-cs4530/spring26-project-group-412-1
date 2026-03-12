@@ -94,6 +94,56 @@ export interface MessageRecord {
 }
 
 /**
+ * Represents an invite in the database.
+ * - `roomId`: game room identifier
+ * - `gameType`: currently "monopoly"
+ * - `inviterId`: user id that sent invite
+ * - `inviteeId`: user id that received invite
+ * - `status`: invite lifecycle status
+ * - `createdAt`: when invite was created
+ * - `updatedAt`: when invite was last updated
+ * - `expiresAt`: when pending invite expires
+ * - `respondedAt`: when invitee accepted or declined
+ * - `canceledAt`: when inviter canceled
+ */
+export interface InviteRecord {
+  roomId: RecordId; // References Game records
+  gameType: "monopoly";
+  inviterId: RecordId; // References User records
+  inviteeId: RecordId; // References User records
+  status: "pending" | "accepted" | "declined" | "expired" | "canceled";
+  createdAt: DateISO;
+  updatedAt: DateISO;
+  expiresAt: DateISO;
+  respondedAt?: DateISO;
+  canceledAt?: DateISO;
+}
+
+/**
+ * Secondary index entry that enforces at most one pending invite for the same
+ * room+invitee pair.
+ */
+export interface InvitePendingIndexRecord {
+  inviteId: RecordId; // References Invite records
+  createdAt: DateISO;
+  expiresAt: DateISO;
+}
+
+/**
+ * Secondary index entry for invite listing by invitee.
+ */
+export interface InviteByInviteeIndexRecord {
+  inviteIds: RecordId[]; // References Invite records
+}
+
+/**
+ * Secondary index entry for invite listing by inviter.
+ */
+export interface InviteByInviterIndexRecord {
+  inviteIds: RecordId[]; // References Invite records
+}
+
+/**
  * Represents a forum post as it's stored in the database.
  * - `title`: post title
  * - `text`: post contents

@@ -5,6 +5,10 @@ import {
   ChatRepo,
   CommentRepo,
   GameRepo,
+  InviteByInviteeRepo,
+  InviteByInviterRepo,
+  InvitePendingByRoomInviteeRepo,
+  InviteRepo,
   MessageRepo,
   ThreadRepo,
   UserRepo,
@@ -122,6 +126,10 @@ export async function resetEverythingToDefaults() {
   await ChatRepo.clear();
   await CommentRepo.clear();
   await GameRepo.clear();
+  await InviteRepo.clear();
+  await InvitePendingByRoomInviteeRepo.clear();
+  await InviteByInviteeRepo.clear();
+  await InviteByInviterRepo.clear();
   await MessageRepo.clear();
   await ThreadRepo.clear();
   await UserRepo.clear();
