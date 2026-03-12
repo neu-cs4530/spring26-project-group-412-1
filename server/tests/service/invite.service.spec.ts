@@ -17,8 +17,9 @@ describe("invite.service", () => {
     const game = await createGame(inviter, "nim", now);
 
     await createInvite(inviter, game.gameId, "user2", now);
-    await expect(createInvite(inviter, game.gameId, "user2", new Date(now.getTime() + 10_000)))
-      .rejects.toThrow("Duplicate pending invite");
+    await expect(
+      createInvite(inviter, game.gameId, "user2", new Date(now.getTime() + 10_000)),
+    ).rejects.toThrow("Duplicate pending invite");
 
     const invites = await getInvitesForInvitee(invitee, now, true);
     expect(invites).toHaveLength(1);
@@ -66,7 +67,11 @@ describe("invite.service", () => {
     const game = await createGame(inviter, "nim", now);
     const invite = await createInvite(inviter, game.gameId, "user2", now);
 
-    const declined = await declineInvite(invite.inviteId, invitee, new Date(now.getTime() + 60_000));
+    const declined = await declineInvite(
+      invite.inviteId,
+      invitee,
+      new Date(now.getTime() + 60_000),
+    );
     expect(declined.status).toBe("declined");
 
     const actionable = await getInvitesForInvitee(invitee, new Date(now.getTime() + 60_000), false);
@@ -84,12 +89,11 @@ describe("invite.service", () => {
     const game = await createGame(inviter, "nim", now);
     const invite = await createInvite(inviter, game.gameId, "user2", now);
 
-    await expect(cancelInvite(invite.inviteId, invitee, new Date(now.getTime() + 30_000))).rejects.toThrow(
-      "Not authorized",
-    );
+    await expect(
+      cancelInvite(invite.inviteId, invitee, new Date(now.getTime() + 30_000)),
+    ).rejects.toThrow("Not authorized");
 
     const canceled = await cancelInvite(invite.inviteId, inviter, new Date(now.getTime() + 60_000));
     expect(canceled.status).toBe("canceled");
   });
 });
-

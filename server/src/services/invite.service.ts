@@ -78,7 +78,9 @@ async function lazilyExpireInvite(inviteId: string, now: Date): Promise<InviteRe
     updatedAt: now.toISOString(),
   };
   await InviteRepo.set(inviteId, expired);
-  await InvitePendingByRoomInviteeRepo.remove(pendingInviteIndexKey(invite.roomId, invite.inviteeId));
+  await InvitePendingByRoomInviteeRepo.remove(
+    pendingInviteIndexKey(invite.roomId, invite.inviteeId),
+  );
   return expired;
 }
 
@@ -208,7 +210,9 @@ async function updateInviteStatus(
   const updated = updater(invite);
   await InviteRepo.set(inviteId, updated);
   if (updated.status !== "pending") {
-    await InvitePendingByRoomInviteeRepo.remove(pendingInviteIndexKey(updated.roomId, updated.inviteeId));
+    await InvitePendingByRoomInviteeRepo.remove(
+      pendingInviteIndexKey(updated.roomId, updated.inviteeId),
+    );
   }
   return populateInviteInfo(inviteId);
 }
@@ -216,7 +220,11 @@ async function updateInviteStatus(
 /**
  * Accept an invite and join the room.
  */
-export async function acceptInvite(inviteId: string, invitee: UserWithId, now: Date): Promise<InviteInfo> {
+export async function acceptInvite(
+  inviteId: string,
+  invitee: UserWithId,
+  now: Date,
+): Promise<InviteInfo> {
   const invite = await lazilyExpireInvite(inviteId, now);
   if (invite.inviteeId !== invitee.userId) throw new Error("Not authorized to accept this invite");
   if (invite.status !== "pending") throw new Error(`Invite is ${invite.status}`);
@@ -253,7 +261,11 @@ export async function declineInvite(
 /**
  * Cancel a pending invite.
  */
-export async function cancelInvite(inviteId: string, inviter: UserWithId, now: Date): Promise<InviteInfo> {
+export async function cancelInvite(
+  inviteId: string,
+  inviter: UserWithId,
+  now: Date,
+): Promise<InviteInfo> {
   const invite = await lazilyExpireInvite(inviteId, now);
   if (invite.inviterId !== inviter.userId) throw new Error("Not authorized to cancel this invite");
   if (invite.status !== "pending") throw new Error(`Invite is ${invite.status}`);
