@@ -56,6 +56,12 @@ export interface Repo<Value> {
   getAllKeys: () => Promise<Key[]>;
 
   /**
+   * Removes a single key-value pair from storage if it exists.
+   * @param key
+   */
+  remove: (key: Key) => Promise<void>;
+
+  /**
    * Removes all key-value pairs from storage
    * @returns
    */
@@ -146,6 +152,11 @@ export function createRepo<T = unknown>(repoName: string): Repo<T> {
         result.push(key as string);
       }
       return result;
+    },
+
+    remove: async (key) => {
+      const store = getStore();
+      await store.delete(key);
     },
 
     find: async (key) => {
