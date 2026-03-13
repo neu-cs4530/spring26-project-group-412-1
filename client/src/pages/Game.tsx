@@ -6,7 +6,7 @@ import type { GameInfo } from "@gamenite/shared";
 import ChatPanel from "../components/ChatPanel.tsx";
 import GamePanel from "../components/GamePanel.tsx";
 import useAuth from "../hooks/useAuth.ts";
-import { createInviteRequest } from "../services/inviteService.ts";
+import { sendInviteRequest } from "../services/inviteService.ts";
 
 export default function Game() {
   const { gameId } = useParams();
@@ -43,7 +43,7 @@ export default function Game() {
     setInviteErr(null);
     setInviteMsg(null);
 
-    const response = await createInviteRequest(auth, game.gameId, trimmedUsername);
+    const response = await sendInviteRequest(auth, game.gameId, trimmedUsername);
 
     if ("error" in response) {
       setInviteErr(response.error);

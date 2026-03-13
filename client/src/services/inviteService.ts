@@ -15,10 +15,14 @@ function reviveInviteDates(invite: InviteInfo): InviteInfo {
   };
 }
 
-export const getMyInvites = async (auth: UserAuth): APIResponse<InviteInfo[]> => {
+export const getMineInvites = async (
+  auth: UserAuth,
+  includeHistory = false,
+): APIResponse<InviteInfo[]> => {
   try {
-    const res = await api.get<InviteInfo[] | ErrorMsg>(`${INVITE_API_URL}/list`, {
-      params: auth,
+    const res = await api.post<InviteInfo[] | ErrorMsg>(`${INVITE_API_URL}/mine`, {
+      auth,
+      payload: { includeHistory },
     });
 
     if ("error" in res.data) return res.data;
@@ -28,13 +32,13 @@ export const getMyInvites = async (auth: UserAuth): APIResponse<InviteInfo[]> =>
   }
 };
 
-export const createInviteRequest = async (
+export const sendInviteRequest = async (
   auth: UserAuth,
   roomId: string,
   inviteeUsername: string,
 ): APIResponse<InviteInfo> => {
   try {
-    const res = await api.post<InviteInfo | ErrorMsg>(`${INVITE_API_URL}/create`, {
+    const res = await api.post<InviteInfo | ErrorMsg>(`${INVITE_API_URL}/send`, {
       auth,
       payload: { roomId, inviteeUsername },
     });
@@ -53,7 +57,7 @@ export const acceptInviteRequest = async (
   try {
     const res = await api.post<InviteInfo | ErrorMsg>(`${INVITE_API_URL}/${inviteId}/accept`, {
       auth,
-      payload: null,
+      payload: {},
     });
 
     if ("error" in res.data) return res.data;
@@ -70,7 +74,7 @@ export const declineInviteRequest = async (
   try {
     const res = await api.post<InviteInfo | ErrorMsg>(`${INVITE_API_URL}/${inviteId}/decline`, {
       auth,
-      payload: null,
+      payload: {},
     });
 
     if ("error" in res.data) return res.data;
@@ -79,3 +83,7 @@ export const declineInviteRequest = async (
     return exceptionToErrorMsg(error);
   }
 };
+
+// Temporary compatibility aliases during client refactor.
+export const getMyInvites = getMineInvites;
+export const createInviteRequest = sendInviteRequest;

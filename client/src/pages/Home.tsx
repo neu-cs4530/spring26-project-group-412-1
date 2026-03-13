@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import useThreadList from "../hooks/useThreadList.ts";
 import ThreadSummaryView from "../components/ThreadSummaryView.tsx";
 import { useNavigate } from "react-router-dom";
@@ -9,8 +9,10 @@ import type { InviteInfo } from "@gamenite/shared";
 import {
   acceptInviteRequest,
   declineInviteRequest,
-  getMyInvites,
+  getMineInvites,
 } from "../services/inviteService.ts";
+
+const INVITE_POLL_INTERVAL_MS = 15_000;
 
 export default function Home() {
   const threadList = useThreadList(4);
@@ -21,33 +23,43 @@ export default function Home() {
   const [invites, setInvites] = useState<InviteInfo[]>([]);
   const [inviteErr, setInviteErr] = useState<string | null>(null);
   const [loadingInvites, setLoadingInvites] = useState(true);
+  const mountedRef = useRef(true);
+
+  const refreshInvites = useCallback(async () => {
+    const response = await getMineInvites(auth, false);
+
+    if (!mountedRef.current) return;
+
+    if ("error" in response) {
+      setInviteErr(response.error);
+      setInvites([]);
+    } else {
+      setInviteErr(null);
+      setInvites(response);
+    }
+
+    setLoadingInvites(false);
+  }, [auth]);
 
   useEffect(() => {
-    let mounted = true;
-
-    const loadInvites = async () => {
-      setLoadingInvites(true);
-      const response = await getMyInvites(auth);
-
-      if (!mounted) return;
-
-      if ("error" in response) {
-        setInviteErr(response.error);
-        setInvites([]);
-      } else {
-        setInviteErr(null);
-        setInvites(response);
-      }
-
-      setLoadingInvites(false);
+    return () => {
+      mountedRef.current = false;
     };
+  }, []);
 
-    void loadInvites();
+  useEffect(() => {
+    const initialLoadTimer = window.setTimeout(() => {
+      void refreshInvites();
+    }, 0);
+    const pollTimer = window.setInterval(() => {
+      void refreshInvites();
+    }, INVITE_POLL_INTERVAL_MS);
 
     return () => {
-      mounted = false;
+      window.clearTimeout(initialLoadTimer);
+      window.clearInterval(pollTimer);
     };
-  }, [auth]);
+  }, [refreshInvites]);
 
   const handleAccept = async (inviteId: string) => {
     const response = await acceptInviteRequest(auth, inviteId);
@@ -56,7 +68,7 @@ export default function Home() {
       return;
     }
 
-    setInvites((prev) => prev.filter((invite) => invite.inviteId !== inviteId));
+    await refreshInvites();
     navigate(`/game/${response.roomId}`);
   };
 
@@ -67,7 +79,7 @@ export default function Home() {
       return;
     }
 
-    setInvites((prev) => prev.filter((invite) => invite.inviteId !== inviteId));
+    await refreshInvites();
   };
 
   return (
