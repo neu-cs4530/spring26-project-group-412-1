@@ -54,7 +54,6 @@ export default function useEditProfileForm() {
     const updates: UserUpdateRequest = {};
     if (display !== user.display) updates.display = display;
     if (password !== "") updates.password = password;
-    console.log({ display, password, confirm });
     const response = await updateUser(auth, updates);
     if ("error" in response) {
       setErr(response.error);

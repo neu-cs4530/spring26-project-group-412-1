@@ -1,7 +1,7 @@
 /* eslint no-console: "off" */
 
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Login from "./pages/Login.tsx";
 import type { AuthContext } from "./contexts/LoginContext.ts";
 import Layout from "./components/Layout.tsx";
@@ -25,15 +25,33 @@ import type { SafeUserInfo } from "@gamenite/shared";
 const DEBUG_SOCKETS = false;
 const AUTH_STORAGE_KEY = "gamenite-auth";
 
-/**
- * Websocket connection for the app. It would be natural to define this in a
- * useEffect hook, but the React docts advise against this.
- * https://react.dev/learn/you-might-not-need-an-effect#initializing-the-application
- * */
 type StoredAuth = {
   user: SafeUserInfo;
   pass: string;
 };
+
+type LoginAuth = {
+  user: SafeUserInfo;
+  pass: string;
+  reset: () => void;
+};
+
+/**
+ * Reads the persisted auth payload from localStorage, if present.
+ */
+function loadStoredAuth(): StoredAuth | null {
+  if (typeof window === "undefined") return null;
+
+  const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as StoredAuth;
+  } catch {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    return null;
+  }
+}
 
 let socket: GameSocket | null = null;
 if (typeof window !== "undefined") {
@@ -51,80 +69,43 @@ function NoSuchRoute() {
 }
 
 export default function App() {
-  const [auth, setAuth] = useState<AuthContext | null>(() => {
-    if (typeof window === "undefined") return null;
+  const [storedAuth, setStoredAuth] = useState<StoredAuth | null>(() => loadStoredAuth());
 
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!raw) return null;
+  const auth = useMemo<AuthContext | null>(() => {
+    if (!storedAuth) return null;
 
-    try {
-      const parsed = JSON.parse(raw) as StoredAuth;
-      return {
-        user: parsed.user,
-        pass: parsed.pass,
-        reset: () => {
-          localStorage.removeItem(AUTH_STORAGE_KEY);
-          setAuth(null);
-        },
-        setUser: (user: SafeUserInfo) => {
-          setAuth((prev) => {
-            if (!prev) return prev;
-            const next = { ...prev, user };
-            localStorage.setItem(
-              AUTH_STORAGE_KEY,
-              JSON.stringify({ user: next.user, pass: next.pass }),
-            );
-            return next;
-          });
-        },
-      };
-    } catch {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      return null;
-    }
-  });
+    return {
+      user: storedAuth.user,
+      pass: storedAuth.pass,
+      reset: () => {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        setStoredAuth(null);
+      },
+      setUser: (user: SafeUserInfo) => {
+        const updated: StoredAuth = {
+          user,
+          pass: storedAuth.pass,
+        };
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
+        setStoredAuth(updated);
+      },
+    };
+  }, [storedAuth]);
 
-  const installAuth = (
-    incomingAuth: { user: SafeUserInfo; pass: string; reset: () => void } | null,
-  ) => {
+  const installAuth = (incomingAuth: LoginAuth | null) => {
     if (incomingAuth === null) {
       localStorage.removeItem(AUTH_STORAGE_KEY);
-      setAuth(null);
+      setStoredAuth(null);
       return;
     }
 
-    const nextAuth: AuthContext = {
+    const nextStoredAuth: StoredAuth = {
       user: incomingAuth.user,
       pass: incomingAuth.pass,
-      reset: () => {
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-        setAuth(null);
-      },
-      setUser: (user: SafeUserInfo) => {
-        setAuth((prev) => {
-          if (!prev) return prev;
-          const updated = { ...prev, user };
-          localStorage.setItem(
-            AUTH_STORAGE_KEY,
-            JSON.stringify({
-              user: updated.user,
-              pass: updated.pass,
-            }),
-          );
-          return updated;
-        });
-      },
     };
 
-    localStorage.setItem(
-      AUTH_STORAGE_KEY,
-      JSON.stringify({
-        user: nextAuth.user,
-        pass: nextAuth.pass,
-      }),
-    );
-
-    setAuth(nextAuth);
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextStoredAuth));
+    setStoredAuth(nextStoredAuth);
   };
 
   return (
