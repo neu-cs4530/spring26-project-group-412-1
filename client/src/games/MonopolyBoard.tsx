@@ -43,8 +43,6 @@ function SpaceTile({
         height: "100%",
         border: "1px solid black",
         backgroundColor: "white",
-        display: "flex",
-        flexDirection: "column",
       }}
     >
       {color && (
@@ -60,9 +58,6 @@ function SpaceTile({
       <div
         style={{
           flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
           minHeight: 0,
           padding: "0.2rem",
         }}
@@ -73,7 +68,6 @@ function SpaceTile({
             fontWeight: 700,
             lineHeight: 1,
             textAlign: "center",
-            wordBreak: "break-word",
           }}
         >
           {space.name}
@@ -112,10 +106,8 @@ function SpaceTile({
             minHeight: "1.5rem",
           }}
         >
-          {playersHere.map(({ player, index }) => (
+          {playersHere.map(({ index }) => (
             <span
-              key={player.userId}
-              title={userInfos[index]?.display ?? player.username ?? `P${index + 1}`}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -123,7 +115,7 @@ function SpaceTile({
                 width: "1rem",
                 height: "1rem",
                 borderRadius: "999px",
-                backgroundColor: index === currentPlayerIndex ? "black" : "grey",
+                backgroundColor: index === currentPlayerIndex ? "blue" : "grey",
                 color: "white",
                 fontSize: "0.5rem",
                 fontWeight: 700,
@@ -218,7 +210,6 @@ export default function MonopolyBoard({
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            textAlign: "center",
             padding: "1rem",
           }}
         >
