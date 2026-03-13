@@ -1,8 +1,12 @@
 import { type ChangeEvent, type SubmitEvent, useState } from "react";
 import { loginUser, signupUser } from "../services/userService.ts";
-import { type AuthContext } from "../contexts/LoginContext.ts";
 import { useNavigate } from "react-router-dom";
 import type { ErrorMsg, SafeUserInfo } from "@gamenite/shared";
+type LoginAuth = {
+  user: SafeUserInfo;
+  pass: string;
+  reset: () => void;
+};
 
 /**
  * Custom hook to manage login page logic.
@@ -17,7 +21,7 @@ import type { ErrorMsg, SafeUserInfo } from "@gamenite/shared";
  *   - handleInputChange: Function to handle changes in input fields.
  *   - handleSubmit: Function to handle form submission.
  */
-export default function useLoginForm(setAuth: (auth: AuthContext | null) => void) {
+export default function useLoginForm(setAuth: (auth: LoginAuth | null) => void) {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");

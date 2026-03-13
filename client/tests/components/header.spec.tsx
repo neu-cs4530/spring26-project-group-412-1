@@ -26,6 +26,7 @@ describe("Header component", () => {
           pass: "pwd",
           socket: {} as GameSocket,
           reset: mockedReset,
+          setUser: vi.fn(),
         }}
       >
         <Header />
@@ -47,6 +48,7 @@ describe("Header component", () => {
           pass: "pwd",
           socket: {} as GameSocket,
           reset: mockedReset,
+          setUser: vi.fn(),
         }}
       >
         <Header />
@@ -70,6 +72,7 @@ describe("Header component", () => {
           pass: "pwd",
           socket: {} as GameSocket,
           reset: mockedReset,
+          setUser: vi.fn(),
         }}
       >
         <Header />

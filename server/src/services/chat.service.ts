@@ -5,6 +5,32 @@ import { type UserWithId } from "../types.ts";
 import type { ChatRecord, MoveLogEntry, RecordId } from "../models.ts";
 import { ChatRepo } from "../repository.ts";
 
+const chatLocks = new Map<string, Promise<void>>();
+
+async function withChatLock<T>(chatId: string, action: () => Promise<T>): Promise<T> {
+  const previous = chatLocks.get(chatId) ?? Promise.resolve();
+
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
+  chatLocks.set(
+    chatId,
+    previous.then(() => current),
+  );
+
+  await previous;
+  try {
+    return await action();
+  } finally {
+    release();
+    if (chatLocks.get(chatId) === current) {
+      chatLocks.delete(chatId);
+    }
+  }
+}
+
 /**
  * Expand a stored chat
  *
@@ -71,14 +97,18 @@ export async function addMessageToChat(
   user: UserWithId,
   messageId: string,
 ): Promise<ChatInfo> {
-  const chat = await ChatRepo.find(chatId);
-  if (!chat) throw new Error(`user ${user.username} sent to invalid chat id`);
-  const newChat: ChatRecord = {
-    ...chat,
-    messages: [...chat.messages, messageId],
-  };
-  await ChatRepo.set(chatId, newChat);
-  return populateChatInfo(chatId);
+  return withChatLock(chatId, async () => {
+    const chat = await ChatRepo.find(chatId);
+    if (!chat) throw new Error(`user ${user.username} sent to invalid chat id`);
+
+    const newChat: ChatRecord = {
+      ...chat,
+      messages: [...chat.messages, messageId],
+    };
+
+    await ChatRepo.set(chatId, newChat);
+    return populateChatInfo(chatId);
+  });
 }
 
 /**
@@ -97,20 +127,26 @@ export async function addMoveLogToChat(
   user: UserWithId,
   createdAt: Date,
 ): Promise<ChatMoveLogPayload> {
-  const chat = await ChatRepo.find(chatId);
-  if (!chat) throw new Error(`move log added to invalid chat id`);
-  const entry: MoveLogEntry = {
-    moveDescription,
-    userId: user.userId,
-    createdAt: createdAt.toISOString(),
-  };
-  const newChat: ChatRecord = {
-    ...chat,
-    moveLog: [...chat.moveLog, entry],
-  };
-  await ChatRepo.set(chatId, newChat);
-  const safeUser = await populateSafeUserInfo(user.userId);
-  return { chatId, moveDescription, user: safeUser, createdAt };
+  return withChatLock(chatId, async () => {
+    const chat = await ChatRepo.find(chatId);
+    if (!chat) throw new Error(`move log added to invalid chat id`);
+
+    const entry: MoveLogEntry = {
+      moveDescription,
+      userId: user.userId,
+      createdAt: createdAt.toISOString(),
+    };
+
+    const newChat: ChatRecord = {
+      ...chat,
+      moveLog: [...chat.moveLog, entry],
+    };
+
+    await ChatRepo.set(chatId, newChat);
+
+    const safeUser = await populateSafeUserInfo(user.userId);
+    return { chatId, moveDescription, user: safeUser, createdAt };
+  });
 }
 
 /**

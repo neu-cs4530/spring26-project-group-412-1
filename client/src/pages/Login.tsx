@@ -1,10 +1,16 @@
 import useLoginForm from "../hooks/useLoginForm.ts";
 import "./Login.css";
 import { useState } from "react";
-import { type AuthContext } from "../contexts/LoginContext.ts";
+import type { SafeUserInfo } from "@gamenite/shared";
+
+type LoginAuth = {
+  user: SafeUserInfo;
+  pass: string;
+  reset: () => void;
+};
 
 interface LoginProps {
-  setAuth: (s: AuthContext | null) => void;
+  setAuth: (s: LoginAuth | null) => void;
 }
 
 /**

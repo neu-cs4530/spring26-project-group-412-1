@@ -84,7 +84,15 @@ export default function App() {
     }
   });
 
-  const installAuth = (incomingAuth: { user: SafeUserInfo; pass: string; reset: () => void }) => {
+  const installAuth = (
+    incomingAuth: { user: SafeUserInfo; pass: string; reset: () => void } | null,
+  ) => {
+    if (incomingAuth === null) {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      setAuth(null);
+      return;
+    }
+
     const nextAuth: AuthContext = {
       user: incomingAuth.user,
       pass: incomingAuth.pass,
