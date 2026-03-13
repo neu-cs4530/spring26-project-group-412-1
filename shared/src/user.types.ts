@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+export const PROFILE_PHOTO_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
+export const PROFILE_PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+
+export type ProfilePhotoMimeType = (typeof PROFILE_PHOTO_MIME_TYPES)[number];
+
+export interface SafeProfilePhoto {
+  mimeType: ProfilePhotoMimeType;
+  dataBase64: string;
+  sizeBytes: number;
+}
+
 /**
  * Represents a "safe" user object that excludes sensitive information like
  * the password, suitable for exposing to clients,
@@ -12,6 +23,7 @@ export interface SafeUserInfo {
   display: string;
   createdAt: Date;
   bio?: string;
+  profilePhoto?: SafeProfilePhoto;
 }
 
 /*** TYPES USED IN THE USER API ***/

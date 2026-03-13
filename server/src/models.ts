@@ -160,6 +160,16 @@ export interface ThreadRecord {
 }
 
 /**
+ * Represents an uploaded profile photo in the database.
+ */
+export interface ProfilePhotoRecord {
+  mimeType: "image/png" | "image/jpeg" | "image/webp";
+  dataBase64: string;
+  sizeBytes: number;
+  uploadedAt: DateISO;
+}
+
+/**
  * Represents a user document in the database.
  * - `password`: user's password
  * - `display`: A display name
@@ -170,4 +180,5 @@ export interface UserRecord {
   display: string;
   createdAt: DateISO;
   bio?: string;
+  profilePhoto?: ProfilePhotoRecord;
 }

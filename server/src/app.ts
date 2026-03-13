@@ -56,6 +56,7 @@ app.use(
         .post("/list", user.postList)
         .post("/login", user.postLogin)
         .post("/signup", user.postSignup)
+        .post("/:username/photo", user.profilePhotoUploadMiddleware, user.postByUsernamePhoto)
         .post("/:username", user.postByUsername)
         .get("/:username", user.getByUsername),
     ),

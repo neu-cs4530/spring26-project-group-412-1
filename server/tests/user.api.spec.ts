@@ -2,8 +2,11 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import supertest, { type Response } from "supertest";
 import { app } from "../src/app.ts";
+import { MAX_PROFILE_PHOTO_BYTES } from "../src/services/user.service.ts";
 
 let response: Response;
+const validPng = Buffer.from("89504E470D0A1A0A0000000D49484452", "hex");
+const invalidFile = Buffer.from("not an image", "utf8");
 const auth1 = { username: "user1", password: "pwd1111" };
 const user1 = { username: "user1", display: "Yāo" };
 const auth2 = { username: "user2", password: "pwd2222" };
@@ -132,6 +135,97 @@ describe("POST/api/user/:username", () => {
       ...user1,
       display: "Newer User 1 Display",
       createdAt: expect.anything(),
+    });
+  });
+});
+
+describe("POST /api/user/:username/photo", () => {
+  it("uploads a valid image when auth matches the route user", async () => {
+    response = await supertest(app)
+      .post("/api/user/user1/photo")
+      .field("authUsername", auth1.username)
+      .field("authPassword", auth1.password)
+      .attach("photo", validPng, { filename: "photo.png", contentType: "image/png" });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toStrictEqual({
+      ...user1,
+      createdAt: expect.anything(),
+      profilePhoto: {
+        mimeType: "image/png",
+        dataBase64: validPng.toString("base64"),
+        sizeBytes: validPng.length,
+      },
+    });
+
+    const lookup = await supertest(app).get("/api/user/user1");
+    expect(lookup.status).toBe(200);
+    expect(lookup.body.profilePhoto).toStrictEqual({
+      mimeType: "image/png",
+      dataBase64: validPng.toString("base64"),
+      sizeBytes: validPng.length,
+    });
+  });
+
+  it("rejects upload when auth is missing or malformed", async () => {
+    response = await supertest(app)
+      .post("/api/user/user1/photo")
+      .field("authUsername", auth1.username)
+      .attach("photo", validPng, { filename: "photo.png", contentType: "image/png" });
+    expect(response.status).toBe(400);
+
+    response = await supertest(app)
+      .post("/api/user/user1/photo")
+      .field("authUsername", auth1.username)
+      .field("authPassword", "wrong")
+      .attach("photo", validPng, { filename: "photo.png", contentType: "image/png" });
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects upload when route username does not match auth username", async () => {
+    response = await supertest(app)
+      .post("/api/user/user1/photo")
+      .field("authUsername", auth2.username)
+      .field("authPassword", auth2.password)
+      .attach("photo", validPng, { filename: "photo.png", contentType: "image/png" });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects upload if no file is provided", async () => {
+    response = await supertest(app)
+      .post("/api/user/user1/photo")
+      .field("authUsername", auth1.username)
+      .field("authPassword", auth1.password);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toStrictEqual({ error: "No profile photo uploaded" });
+  });
+
+  it("rejects unsupported content type", async () => {
+    response = await supertest(app)
+      .post("/api/user/user1/photo")
+      .field("authUsername", auth1.username)
+      .field("authPassword", auth1.password)
+      .attach("photo", invalidFile, { filename: "photo.txt", contentType: "text/plain" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("content type must be one of");
+  });
+
+  it("rejects file larger than configured max size", async () => {
+    const tooLargePng = Buffer.alloc(MAX_PROFILE_PHOTO_BYTES + 1);
+    validPng.copy(tooLargePng, 0, 0, validPng.length);
+
+    response = await supertest(app)
+      .post("/api/user/user1/photo")
+      .field("authUsername", auth1.username)
+      .field("authPassword", auth1.password)
+      .attach("photo", tooLargePng, { filename: "large.png", contentType: "image/png" });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toStrictEqual({
+      error: `Profile photo exceeds maximum size of ${MAX_PROFILE_PHOTO_BYTES} bytes`,
     });
   });
 });
