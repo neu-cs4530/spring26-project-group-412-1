@@ -47,6 +47,7 @@ export default function ViewProfile({ username }: ViewProfileProps) {
             <ul>
               <li>Username: {componentState.user.username}</li>
               <li>Account created {timeSince(componentState.user.createdAt)}</li>
+              {componentState.user.bio && <li>Bio: {componentState.user.bio}</li>}
             </ul>
           </div>
         </>

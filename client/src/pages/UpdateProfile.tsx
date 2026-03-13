@@ -7,7 +7,7 @@ export default function UpdateProfile() {
   const { user } = useLoginContext();
   const timeSince = useTimeSince();
   const [showPass, setShowPass] = useState(false);
-  const { display, setDisplay, password, setPassword, confirm, setConfirm, err, handleSubmit } =
+  const { display, setDisplay, password, setPassword, confirm, setConfirm, bio, setBio, err, handleSubmit } =
     useEditProfileForm();
 
   return (
@@ -34,6 +34,27 @@ export default function UpdateProfile() {
             onClick={(e) => {
               e.preventDefault(); // Don't submit form
               setDisplay(user.display);
+            }}
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+      <hr />
+      <div className="spacedSection">
+        <h3>Bio</h3>
+        <div style={{ display: "flex", flexDirection: "row", gap: "0.5rem" }}>
+          <textarea
+            className="widefill notTooWide"
+            placeholder="Write something about yourself..."
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+          />
+          <button
+            className="secondary narrow"
+            onClick={(e) => {
+              e.preventDefault(); // Don't submit form
+              setBio(user.bio ?? "");
             }}
           >
             Reset
