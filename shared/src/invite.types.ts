@@ -35,3 +35,42 @@ export interface InviteInfo {
   respondedAt?: Date;
   canceledAt?: Date;
 }
+export const zInviteInfo = z.object({
+  inviteId: z.string(),
+  roomId: z.string(),
+  gameType: zInviteGameType,
+  inviterId: z.string(),
+  inviteeId: z.string(),
+  status: zInviteStatus,
+  createdAt: z.date(),
+  updatedAt: z.date(),
+  expiresAt: z.date(),
+  respondedAt: z.date().optional(),
+  canceledAt: z.date().optional(),
+});
+export const zInviteInfoList = z.array(zInviteInfo);
+
+/*** TYPES USED IN THE INVITE API ***/
+
+/**
+ * Payload for sending a new invite.
+ */
+export type CreateInvitePayload = z.infer<typeof zCreateInvitePayload>;
+export const zCreateInvitePayload = z.object({
+  roomId: z.string(),
+  inviteeUsername: z.string(),
+});
+
+/**
+ * Payload for invite list retrieval.
+ */
+export type InviteListPayload = z.infer<typeof zInviteListPayload>;
+export const zInviteListPayload = z.object({
+  includeHistory: z.boolean().optional(),
+});
+
+/**
+ * Empty payload for authenticated invite actions that only need route params.
+ */
+export type EmptyInvitePayload = z.infer<typeof zEmptyInvitePayload>;
+export const zEmptyInvitePayload = z.object({});

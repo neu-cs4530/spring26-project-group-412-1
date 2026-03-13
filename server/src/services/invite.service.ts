@@ -14,11 +14,17 @@ import { inviteeIndexKey, inviterIndexKey, pendingInviteIndexKey } from "./invit
 
 const INVITE_TTL_MS = 5 * 60 * 1000;
 
+async function getInviteRecord(inviteId: string): Promise<InviteRecord> {
+  const invite = await InviteRepo.find(inviteId);
+  if (!invite) throw new Error("Invite not found");
+  return invite;
+}
+
 /**
  * Expand a stored invite.
  */
 async function populateInviteInfo(inviteId: string): Promise<InviteInfo> {
-  const invite = await InviteRepo.get(inviteId);
+  const invite = await getInviteRecord(inviteId);
   return {
     inviteId,
     roomId: invite.roomId,
@@ -68,7 +74,7 @@ async function appendInviteIdToListIndex(
  * Lazily transitions a pending invite to expired if now > expiresAt.
  */
 async function lazilyExpireInvite(inviteId: string, now: Date): Promise<InviteRecord> {
-  const invite = await InviteRepo.get(inviteId);
+  const invite = await getInviteRecord(inviteId);
   if (invite.status !== "pending") return invite;
   if (new Date(invite.expiresAt).getTime() >= now.getTime()) return invite;
 
@@ -206,7 +212,7 @@ async function updateInviteStatus(
   inviteId: string,
   updater: (invite: InviteRecord) => InviteRecord,
 ): Promise<InviteInfo> {
-  const invite = await InviteRepo.get(inviteId);
+  const invite = await getInviteRecord(inviteId);
   const updated = updater(invite);
   await InviteRepo.set(inviteId, updated);
   if (updated.status !== "pending") {
@@ -229,7 +235,24 @@ export async function acceptInvite(
   if (invite.inviteeId !== invitee.userId) throw new Error("Not authorized to accept this invite");
   if (invite.status !== "pending") throw new Error(`Invite is ${invite.status}`);
 
-  await joinGame(invite.roomId, invitee);
+  try {
+    await joinGame(invite.roomId, invitee);
+  } catch (err) {
+    if (err instanceof Error) {
+      if (
+        err.message.includes("invalid game") ||
+        err.message.includes("joining full") ||
+        err.message.includes("joining game that started")
+      ) {
+        await updateInviteStatus(inviteId, (current) => ({
+          ...current,
+          status: "expired",
+          updatedAt: now.toISOString(),
+        }));
+      }
+    }
+    throw err;
+  }
   return updateInviteStatus(inviteId, (current) => ({
     ...current,
     status: "accepted",

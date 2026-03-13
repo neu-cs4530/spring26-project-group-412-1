@@ -1,52 +1,63 @@
-import { type InviteInfo, withAuth } from "@gamenite/shared";
-import { z } from "zod";
+import {
+  type InviteInfo,
+  withAuth,
+  zCreateInvitePayload,
+  zEmptyInvitePayload,
+  zInviteListPayload,
+} from "@gamenite/shared";
+import { type Response } from "express";
 import { type RestAPI } from "../types.ts";
 import { checkAuth } from "../services/auth.service.ts";
 import {
   acceptInvite,
+  cancelInvite,
   createInvite,
   declineInvite,
   getInvitesForInvitee,
+  getInvitesForInviter,
 } from "../services/invite.service.ts";
+import { z } from "zod";
 
-/**
- * Handle GET /api/invite/list?username=...&password=...
- * Returns pending invites for the authenticated invitee.
- */
-export const getList: RestAPI<InviteInfo[]> = async (req, res) => {
-  const auth = z
-    .object({
-      username: z.string(),
-      password: z.string(),
-    })
-    .safeParse(req.query);
-
-  if (!auth.success) {
-    res.status(400).send({ error: "Poorly-formed request" });
+function sendInviteError<R>(res: Response<R | { error: string }>, message: string) {
+  if (message === "Invite is expired") {
+    res.status(410).send({ error: message });
+    return;
+  }
+  if (
+    message === "Room not found" ||
+    message === "Invite not found" ||
+    message === "Invitee not found" ||
+    message.includes("invalid game")
+  ) {
+    res.status(404).send({ error: message });
+    return;
+  }
+  if (message.includes("Not authorized") || message.includes("Only the room host")) {
+    res.status(403).send({ error: message });
+    return;
+  }
+  if (
+    message.includes("Duplicate pending invite") ||
+    message.includes("Room is full") ||
+    message.includes("Invitee is already in the room") ||
+    message.includes("Cannot invite to an active game") ||
+    message.includes("joining full") ||
+    message.includes("joining game that started") ||
+    message.includes("joining game they are in already") ||
+    message.startsWith("Invite is ")
+  ) {
+    res.status(409).send({ error: message });
     return;
   }
 
-  const user = await checkAuth(auth.data);
-  if (!user) {
-    res.status(403).send({ error: "Invalid credentials" });
-    return;
-  }
-
-  res.send(await getInvitesForInvitee(user, new Date(), false));
-};
+  res.status(400).send({ error: message });
+}
 
 /**
- * Handle POST /api/invite/create
- * Body: { auth, payload: { roomId, inviteeUsername } }
+ * Handle POST requests to `/api/invite/send`.
  */
-export const postCreate: RestAPI<InviteInfo> = async (req, res) => {
-  const body = withAuth(
-    z.object({
-      roomId: z.string(),
-      inviteeUsername: z.string(),
-    }),
-  ).safeParse(req.body);
-
+export const postSend: RestAPI<InviteInfo> = async (req, res) => {
+  const body = withAuth(zCreateInvitePayload).safeParse(req.body);
   if (!body.success) {
     res.status(400).send({ error: "Poorly-formed request" });
     return;
@@ -59,27 +70,87 @@ export const postCreate: RestAPI<InviteInfo> = async (req, res) => {
   }
 
   try {
-    res.send(
-      await createInvite(
-        user,
-        body.data.payload.roomId,
-        body.data.payload.inviteeUsername,
-        new Date(),
-      ),
+    const invite = await createInvite(
+      user,
+      body.data.payload.roomId,
+      body.data.payload.inviteeUsername,
+      new Date(),
     );
-  } catch (error) {
-    res.status(400).send({
-      error: error instanceof Error ? error.message : "Failed to create invite",
-    });
+    res.send(invite);
+  } catch (err) {
+    sendInviteError(res, err instanceof Error ? err.message : "Unexpected invite error");
   }
 };
 
 /**
- * Handle POST /api/invite/:id/accept
+ * Handle POST requests to `/api/invite/mine`.
  */
-export const postAccept: RestAPI<InviteInfo, { id: string }> = async (req, res) => {
-  const body = withAuth(z.null()).safeParse(req.body);
+export const postMine: RestAPI<InviteInfo[]> = async (req, res) => {
+  const body = withAuth(zInviteListPayload).safeParse(req.body);
+  if (!body.success) {
+    res.status(400).send({ error: "Poorly-formed request" });
+    return;
+  }
 
+  const user = await checkAuth(body.data.auth);
+  if (!user) {
+    res.status(403).send({ error: "Invalid credentials" });
+    return;
+  }
+
+  res.send(await getInvitesForInvitee(user, new Date(), body.data.payload.includeHistory ?? false));
+};
+
+/**
+ * Compatibility endpoint for GET /api/invite/list.
+ * Expects auth in query params.
+ */
+export const getList: RestAPI<InviteInfo[]> = async (req, res) => {
+  const query = z
+    .object({
+      username: z.string(),
+      password: z.string(),
+      includeHistory: z.coerce.boolean().optional(),
+    })
+    .safeParse(req.query);
+  if (!query.success) {
+    res.status(400).send({ error: "Poorly-formed request" });
+    return;
+  }
+
+  const user = await checkAuth({ username: query.data.username, password: query.data.password });
+  if (!user) {
+    res.status(403).send({ error: "Invalid credentials" });
+    return;
+  }
+
+  res.send(await getInvitesForInvitee(user, new Date(), query.data.includeHistory ?? false));
+};
+
+/**
+ * Handle POST requests to `/api/invite/sent`.
+ */
+export const postSent: RestAPI<InviteInfo[]> = async (req, res) => {
+  const body = withAuth(zInviteListPayload).safeParse(req.body);
+  if (!body.success) {
+    res.status(400).send({ error: "Poorly-formed request" });
+    return;
+  }
+
+  const user = await checkAuth(body.data.auth);
+  if (!user) {
+    res.status(403).send({ error: "Invalid credentials" });
+    return;
+  }
+
+  res.send(await getInvitesForInviter(user, new Date(), body.data.payload.includeHistory ?? true));
+};
+
+/**
+ * Handle POST requests to `/api/invite/:id/accept`.
+ */
+export const postByIdAccept: RestAPI<InviteInfo, { id: string }> = async (req, res) => {
+  const body = withAuth(zEmptyInvitePayload).safeParse(req.body);
   if (!body.success) {
     res.status(400).send({ error: "Poorly-formed request" });
     return;
@@ -93,19 +164,17 @@ export const postAccept: RestAPI<InviteInfo, { id: string }> = async (req, res) 
 
   try {
     res.send(await acceptInvite(req.params.id, user, new Date()));
-  } catch (error) {
-    res.status(400).send({
-      error: error instanceof Error ? error.message : "Failed to accept invite",
-    });
+  } catch (err) {
+    sendInviteError(res, err instanceof Error ? err.message : "Unexpected invite error");
   }
 };
+export const postAccept = postByIdAccept;
 
 /**
- * Handle POST /api/invite/:id/decline
+ * Handle POST requests to `/api/invite/:id/decline`.
  */
-export const postDecline: RestAPI<InviteInfo, { id: string }> = async (req, res) => {
-  const body = withAuth(z.null()).safeParse(req.body);
-
+export const postByIdDecline: RestAPI<InviteInfo, { id: string }> = async (req, res) => {
+  const body = withAuth(zEmptyInvitePayload).safeParse(req.body);
   if (!body.success) {
     res.status(400).send({ error: "Poorly-formed request" });
     return;
@@ -119,9 +188,36 @@ export const postDecline: RestAPI<InviteInfo, { id: string }> = async (req, res)
 
   try {
     res.send(await declineInvite(req.params.id, user, new Date()));
-  } catch (error) {
-    res.status(400).send({
-      error: error instanceof Error ? error.message : "Failed to decline invite",
-    });
+  } catch (err) {
+    sendInviteError(res, err instanceof Error ? err.message : "Unexpected invite error");
   }
 };
+export const postDecline = postByIdDecline;
+
+/**
+ * Handle POST requests to `/api/invite/:id/cancel`.
+ */
+export const postByIdCancel: RestAPI<InviteInfo, { id: string }> = async (req, res) => {
+  const body = withAuth(zEmptyInvitePayload).safeParse(req.body);
+  if (!body.success) {
+    res.status(400).send({ error: "Poorly-formed request" });
+    return;
+  }
+
+  const user = await checkAuth(body.data.auth);
+  if (!user) {
+    res.status(403).send({ error: "Invalid credentials" });
+    return;
+  }
+
+  try {
+    res.send(await cancelInvite(req.params.id, user, new Date()));
+  } catch (err) {
+    sendInviteError(res, err instanceof Error ? err.message : "Unexpected invite error");
+  }
+};
+
+/**
+ * Compatibility alias for POST /api/invite/create.
+ */
+export const postCreate = postSend;
