@@ -9,6 +9,7 @@ import * as game from "./controllers/game.controller.ts";
 import * as user from "./controllers/user.controller.ts";
 import * as thread from "./controllers/thread.controller.ts";
 import { type GameServer } from "./types.ts";
+import * as invite from "./controllers/invite.controller.ts";
 
 export const app = express();
 export const httpServer = http.createServer(app);
@@ -35,6 +36,15 @@ app.use(
         .get("/list", thread.getList)
         .get("/:id", thread.getById)
         .post("/:id/comment", thread.postByIdComment),
+    )
+    .use(
+      "/invite",
+      express
+        .Router() //
+        .get("/list", invite.getList)
+        .post("/create", invite.postCreate)
+        .post("/:id/accept", invite.postAccept)
+        .post("/:id/decline", invite.postDecline),
     )
     .use(
       "/user",
