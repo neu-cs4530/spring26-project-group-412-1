@@ -1,6 +1,7 @@
 import type { SafeUserInfo, TaggedGameView } from "@gamenite/shared";
 import NimGame from "./NimGame.tsx";
 import GuessGame from "./GuessGame.tsx";
+import MonopolyGame from "./MonopolyGame.tsx";
 import { type JSX } from "react";
 import useLoginContext from "../hooks/useLoginContext.ts";
 import useAuth from "../hooks/useAuth.ts";
@@ -31,5 +32,7 @@ export default function GameDispatch({
       return <NimGame {...{ ...childProps, view: view.view }} />;
     case "guess":
       return <GuessGame {...{ ...childProps, view: view.view }} />;
+    case "monopoly":
+      return <MonopolyGame {...{ ...childProps, view: view.view }} />;
   }
 }

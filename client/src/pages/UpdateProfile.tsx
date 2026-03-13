@@ -7,8 +7,18 @@ export default function UpdateProfile() {
   const { user } = useLoginContext();
   const timeSince = useTimeSince();
   const [showPass, setShowPass] = useState(false);
-  const { display, setDisplay, password, setPassword, confirm, setConfirm, bio, setBio, err, handleSubmit } =
-    useEditProfileForm();
+  const {
+    display,
+    setDisplay,
+    password,
+    setPassword,
+    confirm,
+    setConfirm,
+    bio,
+    setBio,
+    err,
+    handleSubmit,
+  } = useEditProfileForm();
 
   return (
     <form className="content spacedSection" onSubmit={handleSubmit}>

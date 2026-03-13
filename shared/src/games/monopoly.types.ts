@@ -18,13 +18,13 @@ export type BoardSpaceType =
  * Includes properties, railroads, and utilities.
  */
 export interface OwnableSpace {
-  spaceId: number;      // 0-39, position on board
+  spaceId: number; // 0-39, position on board
   name: string;
   type: "property" | "railroad" | "utility";
   price: number;
-  rent: number;         // base rent, keep simple for now
-  ownerId?: string;     // userId of owner, undefined if unowned
-  colorGroup?: string;  // e.g. "brown", "red" (only applies to properties)
+  rent: number; // base rent, keep simple for now
+  ownerId?: string; // userId of owner, undefined if unowned
+  colorGroup?: string; // e.g. "brown", "red" (only applies to properties)
 }
 
 /**
@@ -48,7 +48,7 @@ export interface MonopolyPlayer {
   userId: string;
   username: string;
   money: number;
-  position: number;     // 0-39, index on board
+  position: number; // 0-39, index on board
   isBankrupt: boolean;
 }
 
@@ -59,8 +59,8 @@ export interface MonopolyPlayer {
 export interface MonopolyGameState {
   players: MonopolyPlayer[];
   board: BoardSpace[];
-  currentPlayerIndex: number;   // index into players array, whose turn it is
+  currentPlayerIndex: number; // index into players array, whose turn it is
   phase: "waiting" | "playing" | "finished";
-  winnerId?: string;            // userId of winner, only set when phase is "finished"
-  diceRoll?: [number, number];  // the last dice roll, shown to all players
+  winnerId?: string; // userId of winner, only set when phase is "finished"
+  diceRoll?: [number, number]; // the last dice roll, shown to all players
 }

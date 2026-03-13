@@ -6,6 +6,7 @@ import { nimGameService } from "../games/nim.ts";
 import { guessGameService } from "../games/guess.ts";
 import { type GameViewUpdates, type UserWithId } from "../types.ts";
 import { GameRepo } from "../repository.ts";
+import { monopolyGameService } from "../games/monopoly.ts";
 
 /**
  * The service interface for individual games
@@ -13,6 +14,7 @@ import { GameRepo } from "../repository.ts";
 export const gameServices: { [key in GameKey]: GameServicer } = {
   nim: nimGameService,
   guess: guessGameService,
+  monopoly: monopolyGameService,
 };
 
 /**
