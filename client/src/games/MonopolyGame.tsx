@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { MonopolyGameState, OwnableSpace, SafeUserInfo } from "@gamenite/shared";
+import MonopolyBoard from "./MonopolyBoard";
 
 interface MonopolyGameProps {
   view: MonopolyGameState;
@@ -40,6 +41,13 @@ export default function MonopolyGame({ view, players, userPlayerIndex }: Monopol
           ))}
         </ul>
       </div>
+
+      <MonopolyBoard
+        board={view.board}
+        players={view.players}
+        userInfos={players}
+        currentPlayerIndex={view.currentPlayerIndex}
+      />
       <div>
         <button className="secondary narrow" onClick={() => setShowDeck((prev) => !prev)}>
           {showDeck ? "Hide Deck" : "Show Deck"}

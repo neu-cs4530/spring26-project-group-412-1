@@ -1,6 +1,6 @@
 div.gameContainer {
   display: grid;
   height: var(--content-vh);
-  overflow-y: clip;
+  overflow-y: auto;
   grid-template-columns: 1fr 1fr;
 }
