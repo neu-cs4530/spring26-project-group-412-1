@@ -13,7 +13,7 @@ import type { UserUpdateRequest } from "@gamenite/shared";
  *  - Submission handler `handleSubmit`
  */
 export default function useEditProfileForm() {
-  const { user, reset } = useLoginContext();
+  const { user, reset, setUser } = useLoginContext();
   const [display, setDisplay] = useState(user.display);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -54,11 +54,20 @@ export default function useEditProfileForm() {
     const updates: UserUpdateRequest = {};
     if (display !== user.display) updates.display = display;
     if (password !== "") updates.password = password;
+    console.log({ display, password, confirm });
     const response = await updateUser(auth, updates);
     if ("error" in response) {
       setErr(response.error);
       return;
     }
+
+    if (updates.password !== undefined) {
+      reset();
+      return;
+    }
+
+    setUser(response);
+    setErr(null);
 
     // We need to do this — or do something else that resets the login context
     reset();

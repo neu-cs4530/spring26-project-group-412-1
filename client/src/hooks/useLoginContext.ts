@@ -11,12 +11,14 @@ import type { SafeUserInfo } from "@gamenite/shared";
  * - `user`: the logged-in user's information
  * - `pass`: the logged-in user's password (it's bad web dev to keep this around! but we're using it for our nonstandard auth process)
  * - `reset`: a callback
+ * - `setUser`: a callback to set the user information
  */
 export default function useLoginContext(): {
   socket: GameSocket;
   user: SafeUserInfo;
   pass: string;
   reset: () => void;
+  setUser: (user: SafeUserInfo) => void;
 } {
   const context = useContext(LoginContext);
   if (!context) {

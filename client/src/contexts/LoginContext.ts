@@ -8,11 +8,13 @@ import { type GameSocket } from "../util/types.ts";
  * - user - the current user
  * - pass - the user's password
  * - reset - a callback that logs out the user
+ * - setUser - a callback that sets the user information
  */
 export interface AuthContext {
   user: SafeUserInfo;
   pass: string;
   reset: () => void;
+  setUser: (user: SafeUserInfo) => void;
 }
 
 /**
