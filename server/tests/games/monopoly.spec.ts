@@ -80,6 +80,76 @@ describe("Monopoly turn resolution", () => {
         to: 10,
       }),
     );
+    expect(monopolyLogic.describeMove(state, resolved!, { type: "roll" }, 0)).toContain(
+      "went to Jail",
+    );
+  });
+
+  it("resolves a Chance teleport card and advances to Illinois Avenue", () => {
+    const state = makeState();
+    state.players[0].position = 15;
+    state.chanceCursor = 1;
+
+    const resolved = resolveMonopolyTurn(state, 0, [3, 4]);
+    expect(resolved).not.toBeNull();
+    expect(resolved!.players[0].position).toBe(24);
+    expect(resolved!.chanceCursor).toBe(2);
+    expect(resolved!.lastTurnEvents).toContainEqual(
+      expect.objectContaining({
+        type: "drew_card",
+        deck: "chance",
+        cardText: "Advance to Illinois Avenue",
+      }),
+    );
+    expect(resolved!.lastTurnEvents).toContainEqual(
+      expect.objectContaining({
+        type: "teleported",
+        to: 24,
+        destinationName: "Illinois Avenue",
+        reason: "chance",
+      }),
+    );
+  });
+
+  it("resolves a go-back-three card and applies the destination effect", () => {
+    const state = makeState();
+    state.chanceCursor = 8;
+
+    const resolved = resolveMonopolyTurn(state, 0, [3, 4]);
+    expect(resolved).not.toBeNull();
+    expect(resolved!.players[0].position).toBe(4);
+    expect(resolved!.players[0].money).toBe(1300);
+    expect(resolved!.lastTurnEvents).toContainEqual(
+      expect.objectContaining({
+        type: "drew_card",
+        cardText: "Go Back 3 Spaces",
+      }),
+    );
+    expect(resolved!.lastTurnEvents).toContainEqual(
+      expect.objectContaining({
+        type: "paid_tax",
+        amount: 200,
+      }),
+    );
+  });
+
+  it("resolves a Community Chest go-to-jail card", () => {
+    const state = makeState();
+    state.players[0].position = 31;
+    state.communityChestCursor = 1;
+
+    const resolved = resolveMonopolyTurn(state, 0, [1, 1]);
+    expect(resolved).not.toBeNull();
+    expect(resolved!.players[0].position).toBe(10);
+    expect(resolved!.players[0].inJail).toBe(true);
+    expect(resolved!.communityChestCursor).toBe(2);
+    expect(resolved!.lastTurnEvents).toContainEqual(
+      expect.objectContaining({
+        type: "drew_card",
+        deck: "community_chest",
+        cardText: "Go to Jail",
+      }),
+    );
   });
 });
 
@@ -140,8 +210,23 @@ describe("Monopoly move descriptions", () => {
 
     const resolved = resolveMonopolyTurn(state, 0, [1, 1]);
     expect(resolved).not.toBeNull();
+    expect(monopolyLogic.describeMove(state, resolved!, { type: "roll" }, 0)).toBe(
+      " rolled 1 + 1, moved to Income Tax, landed on Income Tax, paid $200 in tax",
+    );
+  });
+
+  it("describes card-driven turns with deck and destination details", () => {
+    const state = makeState();
+    state.players[0].position = 15;
+    state.chanceCursor = 1;
+
+    const resolved = resolveMonopolyTurn(state, 0, [3, 4]);
+    expect(resolved).not.toBeNull();
     expect(monopolyLogic.describeMove(state, resolved!, { type: "roll" }, 0)).toContain(
-      "paid $200 in tax",
+      'drew Chance card "Advance to Illinois Avenue"',
+    );
+    expect(monopolyLogic.describeMove(state, resolved!, { type: "roll" }, 0)).toContain(
+      "moved to Illinois Avenue",
     );
   });
 });

@@ -21,7 +21,7 @@ function describeEvent(event: MonopolyTurnEvent): string {
     case "paid_tax":
       return `Paid $${event.amount} in tax`;
     case "drew_card":
-      return `Drew ${event.cardText}`;
+      return `Drew ${event.deck === "chance" ? "Chance" : "Community Chest"}: ${event.cardText}`;
     case "teleported":
       return `Moved to ${event.destinationName}`;
     case "sent_to_jail":

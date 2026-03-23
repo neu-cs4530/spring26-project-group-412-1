@@ -23,10 +23,46 @@ const CHANCE_DECK: MonopolyCard[] = [
     effect: { type: "move_to_space", spaceId: 0 },
   },
   {
+    id: "chance-advance-illinois",
+    deck: "chance",
+    text: "Advance to Illinois Avenue",
+    effect: { type: "move_to_space", spaceId: 24 },
+  },
+  {
+    id: "chance-advance-st-charles",
+    deck: "chance",
+    text: "Advance to St. Charles Place",
+    effect: { type: "move_to_space", spaceId: 11 },
+  },
+  {
+    id: "chance-nearest-railroad-1",
+    deck: "chance",
+    text: "Advance token to nearest Railroad",
+    effect: { type: "move_to_nearest", spaceType: "railroad" },
+  },
+  {
+    id: "chance-nearest-railroad-2",
+    deck: "chance",
+    text: "Advance token to nearest Railroad",
+    effect: { type: "move_to_nearest", spaceType: "railroad" },
+  },
+  {
     id: "chance-nearest-utility",
     deck: "chance",
     text: "Advance token to nearest Utility",
     effect: { type: "move_to_nearest", spaceType: "utility" },
+  },
+  {
+    id: "chance-reading-railroad",
+    deck: "chance",
+    text: "Take a trip to Reading Railroad",
+    effect: { type: "move_to_space", spaceId: 5 },
+  },
+  {
+    id: "chance-boardwalk",
+    deck: "chance",
+    text: "Take a walk on the Boardwalk",
+    effect: { type: "move_to_space", spaceId: 39 },
   },
   {
     id: "chance-go-back-three",
@@ -517,36 +553,44 @@ export function resolveMonopolyTurn(
   return nextState;
 }
 
+function deckLabel(deck: MonopolyDeckKind): string {
+  return deck === "chance" ? "Chance" : "Community Chest";
+}
+
 function describeTurn(events: MonopolyTurnEvent[]): string {
   if (events.length === 0) return " rolled";
 
   const parts: string[] = [];
-  const rolled = events.find((event) => event.type === "rolled");
-  if (rolled && rolled.type === "rolled") {
-    parts.push(`rolled ${rolled.dice[0]} + ${rolled.dice[1]}`);
-  }
-
-  const finalLanding = [...events].reverse().find((event) => event.type === "landed");
-  if (finalLanding && finalLanding.type === "landed") {
-    parts.push(`landed on ${finalLanding.spaceName}`);
-  }
-
   for (const event of events) {
-    if (event.type === "paid_tax") {
-      parts.push(`paid $${event.amount} in tax`);
-    }
-    if (event.type === "drew_card") {
-      parts.push(`drew "${event.cardText}"`);
-    }
-    if (event.type === "teleported") {
-      parts.push(`moved to ${event.destinationName}`);
-    }
-    if (event.type === "sent_to_jail") {
-      parts.push("was sent to jail");
+    switch (event.type) {
+      case "rolled":
+        parts.push(`rolled ${event.dice[0]} + ${event.dice[1]}`);
+        break;
+      case "moved":
+        parts.push(`moved to ${event.destinationName}`);
+        break;
+      case "landed":
+        parts.push(`landed on ${event.spaceName}`);
+        break;
+      case "passed_go":
+        parts.push(`collected $${event.amount} for passing Go`);
+        break;
+      case "paid_tax":
+        parts.push(`paid $${event.amount} in tax`);
+        break;
+      case "drew_card":
+        parts.push(`drew ${deckLabel(event.deck)} card "${event.cardText}"`);
+        break;
+      case "teleported":
+        parts.push(`moved to ${event.destinationName}`);
+        break;
+      case "sent_to_jail":
+        parts.push("went to Jail");
+        break;
     }
   }
 
-  return ` ${parts.join(" and ")}`;
+  return ` ${parts.join(", ")}`;
 }
 
 export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {

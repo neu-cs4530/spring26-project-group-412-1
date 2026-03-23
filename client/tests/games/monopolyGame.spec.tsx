@@ -66,4 +66,22 @@ describe("MonopolyGame", () => {
     expect(screen.getByText("Landed on Income Tax")).not.toBeNull();
     expect(screen.getByText("Paid $200 in tax")).not.toBeNull();
   });
+
+  it("labels Chance and Community Chest cards in the turn summary", () => {
+    const view = makeView();
+    view.lastTurnEvents = [
+      {
+        type: "drew_card",
+        deck: "chance",
+        cardId: "chance-boardwalk",
+        cardText: "Take a walk on the Boardwalk",
+      },
+      { type: "teleported", from: 7, to: 39, destinationName: "Boardwalk", reason: "chance" },
+    ];
+
+    render(<MonopolyGame view={view} players={PLAYERS} userPlayerIndex={0} makeMove={vi.fn()} />);
+
+    expect(screen.getByText("Drew Chance: Take a walk on the Boardwalk")).not.toBeNull();
+    expect(screen.getByText("Moved to Boardwalk")).not.toBeNull();
+  });
 });
