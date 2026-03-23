@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * Represents the type of a single space on the Monopoly board.
  */
@@ -18,13 +20,23 @@ export type BoardSpaceType =
  * Includes properties, railroads, and utilities.
  */
 export interface OwnableSpace {
-  spaceId: number; // 0-39, position on board
+  spaceId: number;
   name: string;
   type: "property" | "railroad" | "utility";
   price: number;
-  rent: number; // base rent, keep simple for now
-  ownerId?: string; // userId of owner, undefined if unowned
-  colorGroup?: string; // e.g. "brown", "red" (only applies to properties)
+  rent: number;
+  ownerIndex?: number;
+  colorGroup?: string;
+}
+
+/**
+ * A tax space that deducts money when landed on.
+ */
+export interface TaxSpace {
+  spaceId: number;
+  name: string;
+  type: "tax";
+  amount: number;
 }
 
 /**
@@ -33,24 +45,90 @@ export interface OwnableSpace {
 export interface SpecialSpace {
   spaceId: number;
   name: string;
-  type: Exclude<BoardSpaceType, "property" | "railroad" | "utility">;
+  type: Exclude<BoardSpaceType, "property" | "railroad" | "utility" | "tax">;
 }
 
 /**
  * A space on the board is either ownable or special.
  */
-export type BoardSpace = OwnableSpace | SpecialSpace;
+export type BoardSpace = OwnableSpace | TaxSpace | SpecialSpace;
 
 /**
  * Represents a single player's state during a Monopoly game.
  */
 export interface MonopolyPlayer {
-  userId: string;
-  username: string;
   money: number;
-  position: number; // 0-39, index on board
+  position: number;
   isBankrupt: boolean;
+  inJail: boolean;
 }
+
+export type MonopolyDeckKind = "chance" | "community_chest";
+
+export type MonopolyCardEffect =
+  | { type: "move_to_space"; spaceId: number }
+  | { type: "move_by"; spaces: number }
+  | { type: "move_to_nearest"; spaceType: "railroad" | "utility" }
+  | { type: "go_to_jail" };
+
+export interface MonopolyCard {
+  id: string;
+  deck: MonopolyDeckKind;
+  text: string;
+  effect: MonopolyCardEffect;
+}
+
+export type MonopolyTurnEvent =
+  | { type: "rolled"; dice: [number, number] }
+  | {
+      type: "moved";
+      from: number;
+      to: number;
+      destinationName: string;
+    }
+  | {
+      type: "landed";
+      spaceId: number;
+      spaceName: string;
+      spaceType: BoardSpaceType;
+    }
+  | {
+      type: "passed_go";
+      amount: number;
+    }
+  | {
+      type: "paid_tax";
+      amount: number;
+      spaceId: number;
+      spaceName: string;
+    }
+  | {
+      type: "drew_card";
+      deck: MonopolyDeckKind;
+      cardId: string;
+      cardText: string;
+    }
+  | {
+      type: "teleported";
+      from: number;
+      to: number;
+      destinationName: string;
+      reason: MonopolyDeckKind;
+    }
+  | {
+      type: "sent_to_jail";
+      from: number;
+      to: number;
+      destinationName: string;
+    };
+
+/**
+ * The public Monopoly move contract.
+ */
+export type MonopolyMove = z.infer<typeof zMonopolyMove>;
+export const zMonopolyMove = z.object({
+  type: z.literal("roll"),
+});
 
 /**
  * The full state of a Monopoly game at any point in time.
@@ -59,8 +137,11 @@ export interface MonopolyPlayer {
 export interface MonopolyGameState {
   players: MonopolyPlayer[];
   board: BoardSpace[];
-  currentPlayerIndex: number; // index into players array, whose turn it is
+  currentPlayerIndex: number;
   phase: "waiting" | "playing" | "finished";
-  winnerId?: string; // userId of winner, only set when phase is "finished"
-  diceRoll?: [number, number]; // the last dice roll, shown to all players
+  winnerIndex?: number;
+  diceRoll?: [number, number];
+  chanceCursor: number;
+  communityChestCursor: number;
+  lastTurnEvents: MonopolyTurnEvent[];
 }

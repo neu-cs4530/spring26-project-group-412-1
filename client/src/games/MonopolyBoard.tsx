@@ -7,34 +7,27 @@ interface MonopolyBoardProps {
   currentPlayerIndex: number;
 }
 
-function getOwnerLabel(space: BoardSpace, players: MonopolyPlayer[], userInfos: SafeUserInfo[]) {
-  if (!("ownerId" in space) || !space.ownerId) {
+function getOwnerLabel(space: BoardSpace, userInfos: SafeUserInfo[]) {
+  if (!("ownerIndex" in space) || space.ownerIndex === undefined) {
     return undefined;
   }
 
-  const ownerIndex = players.findIndex((player) => player.userId === space.ownerId);
-  if (ownerIndex >= 0) {
-    return userInfos[ownerIndex]?.display ?? players[ownerIndex]?.username ?? `P${ownerIndex + 1}`;
-  }
-
-  return space.ownerId;
+  return userInfos[space.ownerIndex]?.display ?? `P${space.ownerIndex + 1}`;
 }
 
 function SpaceTile({
   space,
   playersHere,
-  players,
   userInfos,
   currentPlayerIndex,
 }: {
   space: BoardSpace;
   playersHere: Array<{ player: MonopolyPlayer; index: number }>;
-  players: MonopolyPlayer[];
   userInfos: SafeUserInfo[];
   currentPlayerIndex: number;
 }) {
   const color = space.type === "property" ? space.colorGroup : undefined;
-  const ownerLabel = getOwnerLabel(space, players, userInfos);
+  const ownerLabel = getOwnerLabel(space, userInfos);
 
   return (
     <div
@@ -108,6 +101,7 @@ function SpaceTile({
         >
           {playersHere.map(({ index }) => (
             <span
+              key={`${space.spaceId}-${index}`}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -173,7 +167,6 @@ export default function MonopolyBoard({
         <SpaceTile
           space={space}
           playersHere={playersHere}
-          players={players}
           userInfos={userInfos}
           currentPlayerIndex={currentPlayerIndex}
         />
