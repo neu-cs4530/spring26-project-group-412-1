@@ -24,10 +24,8 @@ interface MonopolyBoardProps {
   diceRoll?: [number, number];
 }
 
-<<<<<<< us2--monopoly-turn-system-and-smaller-special-cards
 function getOwnerLabel(space: BoardSpace, userInfos: SafeUserInfo[]) {
   if (!("ownerIndex" in space) || space.ownerIndex === undefined) {
-=======
 const PLAYER_PIECES: LucideIcon[] = [Car, Ship, ChessKnight, Dices];
 
 type BoardSpaceWithBuildings = BoardSpace & {
@@ -37,7 +35,6 @@ type BoardSpaceWithBuildings = BoardSpace & {
 
 function getOwnerLabel(space: BoardSpace, players: MonopolyPlayer[], userInfos: SafeUserInfo[]) {
   if (!("ownerId" in space) || !space.ownerId) {
->>>>>>> main
     return undefined;
   }
 
@@ -56,14 +53,10 @@ function SpaceTile({
   currentPlayerIndex: number;
 }) {
   const color = space.type === "property" ? space.colorGroup : undefined;
-<<<<<<< us2--monopoly-turn-system-and-smaller-special-cards
   const ownerLabel = getOwnerLabel(space, userInfos);
-=======
-  const ownerLabel = getOwnerLabel(space, players, userInfos);
   const upgradedSpace = space as BoardSpaceWithBuildings;
   const houseCount = upgradedSpace.houseCount ?? 0;
   const hotelCount = upgradedSpace.hotelCount ?? 0;
->>>>>>> main
 
   return (
     <div
@@ -166,31 +159,11 @@ function SpaceTile({
             maxWidth: "100%",
           }}
         >
-<<<<<<< us2--monopoly-turn-system-and-smaller-special-cards
-          {playersHere.map(({ index }) => (
-            <span
-              key={`${space.spaceId}-${index}`}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "1rem",
-                height: "1rem",
-                borderRadius: "999px",
-                backgroundColor: index === currentPlayerIndex ? "blue" : "grey",
-                color: "white",
-                fontSize: "0.5rem",
-                fontWeight: 700,
-              }}
-            >
-              {index + 1}
-            </span>
-          ))}
-=======
           {playersHere.map(({ index }) => {
             const pieceIcon = PLAYER_PIECES[index % PLAYER_PIECES.length];
             return (
               <span
+                key={`${space.spaceId}-${index}`}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -208,7 +181,6 @@ function SpaceTile({
               </span>
             );
           })}
->>>>>>> main
         </div>
       </div>
     </div>
