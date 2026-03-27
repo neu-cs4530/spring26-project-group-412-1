@@ -245,19 +245,33 @@ export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
     const dieTwo = rollDie();
     const total = dieOne + dieTwo;
 
-    const updatedPlayers = state.players.map((player, index) =>
-      index === playerIndex
-        ? {
-            ...player,
-            position: (player.position + total) % BOARD_SIZE,
-          }
-        : player,
-    );
+    const currentPosition = state.players[playerIndex].position;
+    const newPosition = (currentPosition + total) % BOARD_SIZE;
+
+    const passedGo = newPosition < currentPosition || newPosition === 0;
+
+    const updatedPlayers = state.players.map((player, index) => {
+      if (index !== playerIndex) return player;
+
+      if (newPosition === 30) {
+        return {
+          ...player,
+          position: 10,
+          money: passedGo ? player.money + 200 : player.money,
+        };
+      }
+
+      return {
+        ...player,
+        position: newPosition,
+        money: passedGo ? player.money + 200 : player.money,
+      };
+    });
 
     return {
       ...state,
       players: updatedPlayers,
-      diceRoll: [dieOne, dieTwo],
+      diceRoll: [dieOne, dieTwo] as [number, number],
       currentPlayerIndex: (state.currentPlayerIndex + 1) % state.players.length,
     };
   },
@@ -274,12 +288,21 @@ export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
 
     const [dieOne, dieTwo] = newState.diceRoll ?? [0, 0];
     const total = dieOne + dieTwo;
-    const landedSpace =
-      newState.board[
-        newState.players[
-          (newState.currentPlayerIndex + newState.players.length - 1) % newState.players.length
-        ].position
-      ];
+    const movedPlayerIndex =
+      (newState.currentPlayerIndex + newState.players.length - 1) % newState.players.length;
+    const movedPlayer = newState.players[movedPlayerIndex];
+    const landedSpace = newState.board[movedPlayer.position];
+
+    if (movedPlayer.position === 10) {
+      return ` rolled ${total} and was sent to Jail`;
+    }
+
+    const prevPosition = _prevState.players[movedPlayerIndex].position;
+    const passedGo = movedPlayer.position < prevPosition || movedPlayer.position === 0;
+
+    if (passedGo) {
+      return ` rolled ${total}, passed Go, collected $200, and landed on ${landedSpace?.name ?? "a space"}`;
+    }
 
     return ` rolled ${total} and landed on ${landedSpace?.name ?? "a space"}`;
   },
