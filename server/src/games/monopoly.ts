@@ -281,7 +281,7 @@ export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
         ].position
       ];
 
-    return ` rolled ${dieOne} + ${dieTwo} = ${total} and landed on ${landedSpace?.name ?? "a space"}`;
+    return ` rolled ${total} and landed on ${landedSpace?.name ?? "a space"}`;
   },
 };
 
