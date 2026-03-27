@@ -39,6 +39,10 @@ function getOwnerLabel(space: BoardSpace, userInfos: SafeUserInfo[]) {
   return userInfos[space.ownerIndex]?.display ?? `P${space.ownerIndex + 1}`;
 }
 
+function getPlayerLabel(index: number, userInfos: SafeUserInfo[]) {
+  return userInfos[index]?.display ?? `P${index + 1}`;
+}
+
 function SpaceTile({
   space,
   playersHere,
@@ -159,9 +163,12 @@ function SpaceTile({
         >
           {playersHere.map(({ index }) => {
             const pieceIcon = PLAYER_PIECES[index % PLAYER_PIECES.length];
+            const playerLabel = getPlayerLabel(index, userInfos);
             return (
               <span
                 key={`${space.spaceId}-${index}`}
+                aria-label={`Player token: ${playerLabel}`}
+                title={playerLabel}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",

@@ -6,14 +6,19 @@ import MonopolyGame from "../../src/games/MonopolyGame.tsx";
 const PLAYERS: SafeUserInfo[] = [
   { username: "user1", display: "User One", createdAt: new Date("2026-01-01T00:00:00.000Z") },
   { username: "user2", display: "User Two", createdAt: new Date("2026-01-01T00:00:00.000Z") },
+  { username: "user3", display: "User Three", createdAt: new Date("2026-01-01T00:00:00.000Z") },
+  { username: "user4", display: "User Four", createdAt: new Date("2026-01-01T00:00:00.000Z") },
 ];
 
-function makeView(): MonopolyGameState {
+function makeView(playerCount = 2): MonopolyGameState {
   return {
-    players: [
-      { money: 1500, position: 0, isBankrupt: false, inJail: false },
-      { money: 1500, position: 0, isBankrupt: false, inJail: false },
-    ],
+    players: PLAYERS.slice(0, playerCount).map(() => ({
+      money: 1500,
+      position: 0,
+      isBankrupt: false,
+      inJail: false,
+      jailTurns: 0,
+    })),
     board: [
       { spaceId: 0, name: "Go", type: "go" },
       { spaceId: 1, name: "Mediterranean Avenue", type: "property", price: 60, rent: 2 },
@@ -83,5 +88,34 @@ describe("MonopolyGame", () => {
 
     expect(screen.getByText("Drew Chance: Take a walk on the Boardwalk")).not.toBeNull();
     expect(screen.getByText("Moved to Boardwalk")).not.toBeNull();
+  });
+
+  it("offers pay-bail controls when the current player is in jail", () => {
+    const makeMove = vi.fn();
+    const view = makeView();
+    view.players[0].inJail = true;
+    view.players[0].jailTurns = 1;
+
+    render(<MonopolyGame view={view} players={PLAYERS} userPlayerIndex={0} makeMove={makeMove} />);
+
+    expect(
+      screen.getByText("You're in jail. Roll for doubles or pay $50 bail to leave immediately."),
+    ).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /pay \$50 bail/i }));
+    expect(makeMove).toHaveBeenCalledWith({ type: "pay_bail" });
+  });
+
+  it("renders four-player labels and board tokens", () => {
+    const view = makeView(4);
+
+    render(<MonopolyGame view={view} players={PLAYERS} userPlayerIndex={0} makeMove={vi.fn()} />);
+
+    expect(screen.getByText("User Two - $1500")).not.toBeNull();
+    expect(screen.getByText("User Three - $1500")).not.toBeNull();
+    expect(screen.getByText("User Four - $1500")).not.toBeNull();
+    expect(screen.getByLabelText("Player token: User One")).not.toBeNull();
+    expect(screen.getByLabelText("Player token: User Two")).not.toBeNull();
+    expect(screen.getByLabelText("Player token: User Three")).not.toBeNull();
+    expect(screen.getByLabelText("Player token: User Four")).not.toBeNull();
   });
 });

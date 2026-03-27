@@ -61,6 +61,7 @@ export interface MonopolyPlayer {
   position: number;
   isBankrupt: boolean;
   inJail: boolean;
+  jailTurns: number;
 }
 
 export type MonopolyDeckKind = "chance" | "community_chest";
@@ -120,15 +121,33 @@ export type MonopolyTurnEvent =
       from: number;
       to: number;
       destinationName: string;
+    }
+  | {
+      type: "stayed_in_jail";
+      turnsRemaining: number;
+    }
+  | {
+      type: "paid_bail";
+      amount: number;
+      automatic: boolean;
+    }
+  | {
+      type: "left_jail";
+      method: "rolled_doubles" | "paid_bail" | "automatic_bail";
     };
 
 /**
  * The public Monopoly move contract.
  */
 export type MonopolyMove = z.infer<typeof zMonopolyMove>;
-export const zMonopolyMove = z.object({
-  type: z.literal("roll"),
-});
+export const zMonopolyMove = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("roll"),
+  }),
+  z.object({
+    type: z.literal("pay_bail"),
+  }),
+]);
 
 /**
  * The full state of a Monopoly game at any point in time.

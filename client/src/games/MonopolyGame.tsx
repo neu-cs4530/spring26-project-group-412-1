@@ -26,6 +26,21 @@ function describeEvent(event: MonopolyTurnEvent): string {
       return `Moved to ${event.destinationName}`;
     case "sent_to_jail":
       return "Went to Jail";
+    case "stayed_in_jail":
+      return `Stayed in Jail (${event.turnsRemaining} turns remaining)`;
+    case "paid_bail":
+      return event.automatic
+        ? `Paid $${event.amount} automatic bail`
+        : `Paid $${event.amount} bail`;
+    case "left_jail":
+      switch (event.method) {
+        case "rolled_doubles":
+          return "Left Jail by rolling doubles";
+        case "paid_bail":
+          return "Left Jail";
+        case "automatic_bail":
+          return "Left Jail after automatic bail";
+      }
   }
 }
 
@@ -43,6 +58,8 @@ export default function MonopolyGame({
   );
 
   const isMyTurn = view.currentPlayerIndex === userPlayerIndex;
+  const currentUserPlayer = userPlayerIndex >= 0 ? view.players[userPlayerIndex] : undefined;
+  const isInJail = currentUserPlayer?.inJail ?? false;
   const lastRollTotal = view.diceRoll ? view.diceRoll[0] + view.diceRoll[1] : null;
   const lastActionSummary = useMemo(
     () => view.lastTurnEvents.map(describeEvent),
@@ -65,7 +82,7 @@ export default function MonopolyGame({
           {view.players.map((player, index) => (
             <li key={index}>
               {index === userPlayerIndex ? "You" : players[index]?.display} - ${player.money}
-              {player.inJail && " (in jail)"}
+              {player.inJail && ` (in jail, turn ${player.jailTurns + 1} of 3)`}
               {index === view.currentPlayerIndex && " (current turn)"}
             </li>
           ))}
@@ -73,13 +90,25 @@ export default function MonopolyGame({
       </div>
       {userPlayerIndex >= 0 && (
         <div>
+          {isInJail && isMyTurn && (
+            <div>You're in jail. Roll for doubles or pay $50 bail to leave immediately.</div>
+          )}
           <button
             className="primary narrow"
             disabled={!isMyTurn || view.phase !== "playing"}
             onClick={() => makeMove({ type: "roll" })}
           >
-            Roll Dice
+            {isInJail ? "Roll For Doubles" : "Roll Dice"}
           </button>
+          {isInJail && (
+            <button
+              className="secondary narrow"
+              disabled={!isMyTurn || view.phase !== "playing"}
+              onClick={() => makeMove({ type: "pay_bail" })}
+            >
+              Pay $50 Bail
+            </button>
+          )}
         </div>
       )}
       {view.diceRoll && (
@@ -92,8 +121,8 @@ export default function MonopolyGame({
         <div className="spacedSection">
           <h3>Last Turn</h3>
           <ul>
-            {lastActionSummary.map((summary) => (
-              <li key={summary}>{summary}</li>
+            {lastActionSummary.map((summary, index) => (
+              <li key={`${summary}-${index}`}>{summary}</li>
             ))}
           </ul>
         </div>

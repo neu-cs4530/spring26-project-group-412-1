@@ -5,6 +5,8 @@ import {
   type MonopolyCardEffect,
   type MonopolyDeckKind,
   type MonopolyGameState,
+  type MonopolyMove,
+  type MonopolyPlayer,
   type MonopolyTurnEvent,
   zMonopolyMove,
 } from "@gamenite/shared";
@@ -14,6 +16,8 @@ const STARTING_MONEY = 1500;
 const GO_MONEY = 200;
 const BOARD_SIZE = 40;
 const JAIL_SPACE_ID = 10;
+const BAIL_AMOUNT = 50;
+const MAX_JAIL_TURNS = 3;
 
 const CHANCE_DECK: MonopolyCard[] = [
   {
@@ -352,6 +356,15 @@ function pushEvent(events: MonopolyTurnEvent[], event: MonopolyTurnEvent): void 
   events.push(event);
 }
 
+function isDoubles([dieOne, dieTwo]: [number, number]): boolean {
+  return dieOne === dieTwo;
+}
+
+function releasePlayerFromJail(player: MonopolyPlayer): void {
+  player.inJail = false;
+  player.jailTurns = 0;
+}
+
 function movePlayerBy(
   state: MonopolyGameState,
   playerIndex: number,
@@ -393,7 +406,7 @@ function movePlayerTo(
   }
 
   player.position = destination;
-  player.inJail = false;
+  releasePlayerFromJail(player);
   pushEvent(events, {
     type: "teleported",
     from,
@@ -412,6 +425,7 @@ export function sendPlayerToJail(
   const from = player.position;
   player.position = JAIL_SPACE_ID;
   player.inJail = true;
+  player.jailTurns = 0;
   pushEvent(events, {
     type: "sent_to_jail",
     from,
@@ -532,6 +546,7 @@ export function resolveMonopolyTurn(
   state: MonopolyGameState,
   playerIndex: number,
   diceRoll: [number, number],
+  moveType: MonopolyMove["type"] = "roll",
 ): MonopolyGameState | null {
   if (state.phase !== "playing") return null;
   if (playerIndex !== state.currentPlayerIndex) return null;
@@ -540,12 +555,62 @@ export function resolveMonopolyTurn(
   const nextState = cloneState(state);
   nextState.diceRoll = diceRoll;
   nextState.lastTurnEvents = [];
+  const player = nextState.players[playerIndex];
 
-  if (nextState.players[playerIndex].inJail) {
-    nextState.players[playerIndex].inJail = false;
+  if (player.inJail) {
+    if (moveType === "pay_bail") {
+      player.money -= BAIL_AMOUNT;
+      pushEvent(nextState.lastTurnEvents, {
+        type: "paid_bail",
+        amount: BAIL_AMOUNT,
+        automatic: false,
+      });
+      releasePlayerFromJail(player);
+      pushEvent(nextState.lastTurnEvents, {
+        type: "left_jail",
+        method: "paid_bail",
+      });
+    }
+
+    pushEvent(nextState.lastTurnEvents, { type: "rolled", dice: diceRoll });
+
+    if (player.inJail) {
+      if (isDoubles(diceRoll)) {
+        releasePlayerFromJail(player);
+        pushEvent(nextState.lastTurnEvents, {
+          type: "left_jail",
+          method: "rolled_doubles",
+        });
+      } else {
+        player.jailTurns += 1;
+        if (player.jailTurns >= MAX_JAIL_TURNS) {
+          player.money -= BAIL_AMOUNT;
+          pushEvent(nextState.lastTurnEvents, {
+            type: "paid_bail",
+            amount: BAIL_AMOUNT,
+            automatic: true,
+          });
+          releasePlayerFromJail(player);
+          pushEvent(nextState.lastTurnEvents, {
+            type: "left_jail",
+            method: "automatic_bail",
+          });
+        } else {
+          pushEvent(nextState.lastTurnEvents, {
+            type: "stayed_in_jail",
+            turnsRemaining: MAX_JAIL_TURNS - player.jailTurns,
+          });
+          nextState.currentPlayerIndex = nextPlayerIndex(nextState);
+          return nextState;
+        }
+      }
+    }
+  } else if (moveType === "pay_bail") {
+    return null;
+  } else {
+    pushEvent(nextState.lastTurnEvents, { type: "rolled", dice: diceRoll });
   }
 
-  pushEvent(nextState.lastTurnEvents, { type: "rolled", dice: diceRoll });
   movePlayerBy(nextState, playerIndex, diceRoll[0] + diceRoll[1], nextState.lastTurnEvents);
   resolveLandingSpace(nextState, playerIndex, nextState.lastTurnEvents);
   nextState.currentPlayerIndex = nextPlayerIndex(nextState);
@@ -587,6 +652,29 @@ function describeTurn(events: MonopolyTurnEvent[]): string {
       case "sent_to_jail":
         parts.push("went to Jail");
         break;
+      case "stayed_in_jail":
+        parts.push(`stayed in Jail (${event.turnsRemaining} turns remaining)`);
+        break;
+      case "paid_bail":
+        parts.push(
+          event.automatic
+            ? `paid $${event.amount} bail after a third failed Jail roll`
+            : `paid $${event.amount} bail`,
+        );
+        break;
+      case "left_jail":
+        switch (event.method) {
+          case "rolled_doubles":
+            parts.push("left Jail by rolling doubles");
+            break;
+          case "paid_bail":
+            parts.push("left Jail");
+            break;
+          case "automatic_bail":
+            parts.push("left Jail after paying automatic bail");
+            break;
+        }
+        break;
     }
   }
 
@@ -603,6 +691,7 @@ export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
       position: 0,
       isBankrupt: false,
       inJail: false,
+      jailTurns: 0,
     })),
     board: createInitialBoard(),
     currentPlayerIndex: 0,
@@ -621,6 +710,8 @@ export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
     switch (move.data.type) {
       case "roll":
         return resolveMonopolyTurn(state, playerIndex, rollDice());
+      case "pay_bail":
+        return resolveMonopolyTurn(state, playerIndex, rollDice(), "pay_bail");
     }
   },
 
