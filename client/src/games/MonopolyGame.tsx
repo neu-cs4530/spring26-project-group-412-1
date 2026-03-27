@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { MonopolyGameState, OwnableSpace, SafeUserInfo } from "@gamenite/shared";
 import MonopolyBoard from "./MonopolyBoard";
+import { Dices } from "lucide-react";
 
 interface MonopolyGameProps {
   view: MonopolyGameState;
@@ -9,7 +10,12 @@ interface MonopolyGameProps {
   makeMove: (move: unknown) => void;
 }
 
-export default function MonopolyGame({ view, players, userPlayerIndex }: MonopolyGameProps) {
+export default function MonopolyGame({
+  view,
+  players,
+  userPlayerIndex,
+  makeMove,
+}: MonopolyGameProps) {
   const [showDeck, setShowDeck] = useState(false);
 
   /** All ownable spaces (properties, railroads, utilities) from the board */
@@ -42,11 +48,29 @@ export default function MonopolyGame({ view, players, userPlayerIndex }: Monopol
         </ul>
       </div>
 
+      {isMyTurn && (
+        <div>
+          <button className="primary narrow" onClick={() => makeMove({ type: "ROLL_DICE" })}>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+              }}
+            >
+              <Dices size={16} strokeWidth={2.25} />
+              Roll Dice
+            </span>
+          </button>
+        </div>
+      )}
+
       <MonopolyBoard
         board={view.board}
         players={view.players}
         userInfos={players}
         currentPlayerIndex={view.currentPlayerIndex}
+        diceRoll={view.diceRoll}
       />
       <div>
         <button className="secondary narrow" onClick={() => setShowDeck((prev) => !prev)}>

@@ -1,8 +1,14 @@
 import { GameService } from "./gameServiceManager.ts";
 import { type MonopolyGameState } from "@gamenite/shared";
 import { type GameLogic } from "./gameLogic.ts";
+import { z } from "zod";
 
 const STARTING_MONEY = 1500;
+const BOARD_SIZE = 40;
+
+const zMonopolyMove = z.object({
+  type: z.literal("ROLL_DICE"),
+});
 
 /**
  * Initial board setup with all 40 Monopoly spaces
@@ -206,6 +212,10 @@ function createInitialBoard() {
   ];
 }
 
+function rollDie() {
+  return Math.floor(Math.random() * 6) + 1;
+}
+
 export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
   minPlayers: 2,
   maxPlayers: 4,
@@ -225,9 +235,31 @@ export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
     winnerId: undefined,
   }),
 
-  update: (state, _payload, _playerIndex) => {
-    // Placeholder — real move logic comes in Sprint 2
-    return state;
+  update: (state, payload, playerIndex) => {
+    const move = zMonopolyMove.safeParse(payload);
+    if (move.error) return null;
+    if (state.phase !== "playing") return null;
+    if (playerIndex !== state.currentPlayerIndex) return null;
+
+    const dieOne = rollDie();
+    const dieTwo = rollDie();
+    const total = dieOne + dieTwo;
+
+    const updatedPlayers = state.players.map((player, index) =>
+      index === playerIndex
+        ? {
+            ...player,
+            position: (player.position + total) % BOARD_SIZE,
+          }
+        : player,
+    );
+
+    return {
+      ...state,
+      players: updatedPlayers,
+      diceRoll: [dieOne, dieTwo],
+      currentPlayerIndex: (state.currentPlayerIndex + 1) % state.players.length,
+    };
   },
 
   isDone: (state) => state.phase === "finished",
@@ -236,7 +268,21 @@ export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
 
   tagView: (view) => ({ type: "monopoly", view }),
 
-  describeMove: () => " made a move",
+  describeMove: (_prevState, newState, payload) => {
+    const move = zMonopolyMove.safeParse(payload);
+    if (!move.success) return " made a move";
+
+    const [dieOne, dieTwo] = newState.diceRoll ?? [0, 0];
+    const total = dieOne + dieTwo;
+    const landedSpace =
+      newState.board[
+        newState.players[
+          (newState.currentPlayerIndex + newState.players.length - 1) % newState.players.length
+        ].position
+      ];
+
+    return ` rolled ${dieOne} + ${dieTwo} = ${total} and landed on ${landedSpace?.name ?? "a space"}`;
+  },
 };
 
 export const monopolyGameService = new GameService<MonopolyGameState, MonopolyGameState>(

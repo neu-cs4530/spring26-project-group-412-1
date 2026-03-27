@@ -1,11 +1,35 @@
 import type { BoardSpace, MonopolyPlayer, SafeUserInfo } from "@gamenite/shared";
+import React from "react";
+import {
+  Car,
+  ChessKnight,
+  Dices,
+  Hotel,
+  House,
+  Ship,
+  Dice1,
+  Dice2,
+  Dice3,
+  Dice4,
+  Dice5,
+  Dice6,
+  type LucideIcon,
+} from "lucide-react";
 
 interface MonopolyBoardProps {
   board: BoardSpace[];
   players: MonopolyPlayer[];
   userInfos: SafeUserInfo[];
   currentPlayerIndex: number;
+  diceRoll?: [number, number];
 }
+
+const PLAYER_PIECES: LucideIcon[] = [Car, Ship, ChessKnight, Dices];
+
+type BoardSpaceWithBuildings = BoardSpace & {
+  houseCount?: number;
+  hotelCount?: number;
+};
 
 function getOwnerLabel(space: BoardSpace, players: MonopolyPlayer[], userInfos: SafeUserInfo[]) {
   if (!("ownerId" in space) || !space.ownerId) {
@@ -35,6 +59,9 @@ function SpaceTile({
 }) {
   const color = space.type === "property" ? space.colorGroup : undefined;
   const ownerLabel = getOwnerLabel(space, players, userInfos);
+  const upgradedSpace = space as BoardSpaceWithBuildings;
+  const houseCount = upgradedSpace.houseCount ?? 0;
+  const hotelCount = upgradedSpace.hotelCount ?? 0;
 
   return (
     <div
@@ -65,7 +92,7 @@ function SpaceTile({
         <div
           style={{
             fontSize: "0.5rem",
-            fontWeight: 700,
+            fontWeight: 500,
             lineHeight: 1,
             textAlign: "center",
           }}
@@ -81,6 +108,36 @@ function SpaceTile({
             }}
           >
             ${space.price}
+          </div>
+        )}
+
+        {(houseCount > 0 || hotelCount > 0) && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "0.1rem",
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: "0.9rem",
+            }}
+          >
+            {Array.from({ length: houseCount }, (_, index) => (
+              <House
+                key={`house-${space.spaceId}-${index}`}
+                size={11}
+                color="green"
+                strokeWidth={2.25}
+              />
+            ))}
+            {Array.from({ length: hotelCount }, (_, index) => (
+              <Hotel
+                key={`hotel-${space.spaceId}-${index}`}
+                size={11}
+                color="red"
+                strokeWidth={2.25}
+              />
+            ))}
           </div>
         )}
 
@@ -103,29 +160,63 @@ function SpaceTile({
             gap: "0.2rem",
             justifyContent: "center",
             alignItems: "center",
-            minHeight: "1.5rem",
+            minHeight: "1rem",
+            maxWidth: "100%",
           }}
         >
-          {playersHere.map(({ index }) => (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "1rem",
-                height: "1rem",
-                borderRadius: "999px",
-                backgroundColor: index === currentPlayerIndex ? "blue" : "grey",
-                color: "white",
-                fontSize: "0.5rem",
-                fontWeight: 700,
-              }}
-            >
-              {index + 1}
-            </span>
-          ))}
+          {playersHere.map(({ index }) => {
+            const pieceIcon = PLAYER_PIECES[index % PLAYER_PIECES.length];
+            return (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "1rem",
+                  height: "1rem",
+                  borderRadius: "999px",
+                  backgroundColor: index === currentPlayerIndex ? "blue" : "grey",
+                  color: "white",
+                  fontSize: "0.5rem",
+                  fontWeight: 700,
+                }}
+              >
+                {React.createElement(pieceIcon, { size: 12, strokeWidth: 2.25 })}
+              </span>
+            );
+          })}
         </div>
       </div>
+    </div>
+  );
+}
+
+function DiceFace({ value }: { value: number }) {
+  const diceIcons = {
+    1: Dice1,
+    2: Dice2,
+    3: Dice3,
+    4: Dice4,
+    5: Dice5,
+    6: Dice6,
+  } as const;
+
+  const diceIcon = diceIcons[value as keyof typeof diceIcons] ?? Dices;
+
+  return (
+    <div
+      style={{
+        width: "3rem",
+        height: "3rem",
+        border: "2px solid black",
+        borderRadius: "0.75rem",
+        backgroundColor: "white",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {React.createElement(diceIcon, { size: 24, strokeWidth: 2.25 })}
     </div>
   );
 }
@@ -135,6 +226,7 @@ export default function MonopolyBoard({
   players,
   userInfos,
   currentPlayerIndex,
+  diceRoll,
 }: MonopolyBoardProps) {
   const boardById = new Map(board.map((space) => [space.spaceId, space]));
   const renderSpace = (spaceId: number, gridColumn: number, gridRow: number) => {
@@ -215,11 +307,36 @@ export default function MonopolyBoard({
         >
           <div style={{ fontSize: "2rem", fontWeight: 800 }}>MONOPOLY</div>
           <div>Board View</div>
+          {diceRoll ? (
+            <div
+              style={{
+                display: "flex",
+                gap: "0.75rem",
+                alignItems: "center",
+                justifyContent: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <DiceFace value={diceRoll[0]} />
+              <DiceFace value={diceRoll[1]} />
+              <div style={{ fontWeight: 700 }}>Total: {diceRoll[0] + diceRoll[1]}</div>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                gap: "0.4rem",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Dices size={18} strokeWidth={2.25} />
+              <span>No dice roll yet</span>
+            </div>
+          )}
           <div>Player chips show who is on each space.</div>
         </div>
       </div>
-
-      <div>Chips are numbered by player order. Current turn is highlighted in blue.</div>
     </div>
   );
 }
