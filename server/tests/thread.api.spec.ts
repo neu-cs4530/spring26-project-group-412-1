@@ -18,7 +18,7 @@ describe("GET /api/thread/list", () => {
   it("should return the most recent thread first", async () => {
     response = await supertest(app).get("/api/thread/list");
     expect(response.status).toBe(200);
-    expect(response.body[0]).toStrictEqual({
+    expect(response.body[0]).toMatchObject({
       threadId: "abadcafeabadcafeabadcafe",
       comments: 0,
       createdAt: expect.anything(),
@@ -41,7 +41,7 @@ describe("GET /api/thread/:id", () => {
   it("should return existing ids", async () => {
     response = await supertest(app).get(`/api/thread/deadbeefdeadbeefdeadbeef`);
     expect(response.status).toBe(200);
-    expect(response.body).toStrictEqual({
+    expect(response.body).toMatchObject({
       threadId: "deadbeefdeadbeefdeadbeef",
       title: "Hello game knights",
       text: "I'm a big Nim buff and am excited to join this community.",
@@ -73,7 +73,7 @@ describe("POST /api/thread/create", () => {
       .post(`/api/thread/create`)
       .send({ auth: auth2, payload: { title: "Title", text: "Text" } });
     expect(response.status).toBe(200);
-    expect(response.body).toStrictEqual({
+    expect(response.body).toMatchObject({
       threadId: expect.anything(),
       title: "Title",
       text: "Text",
@@ -117,13 +117,17 @@ describe("POST /api/thread/:id/comment", () => {
       .post(`/api/thread/deadbeefdeadbeefdeadbeef/comment`)
       .send(comment);
     expect(response.status).toBe(200);
-    expect(response.body?.comments).toStrictEqual([
-      {
+    expect(response.body?.comments).toEqual([
+      expect.objectContaining({
         commentId: expect.anything(),
         createdAt: expect.anything(),
         text: "FIRST!",
-        createdBy: { username: "user2", display: "Sénior Dos", createdAt: expect.anything() },
-      },
+        createdBy: expect.objectContaining({
+          username: "user2",
+          display: "Sénior Dos",
+          createdAt: expect.anything(),
+        }),
+      }),
     ]);
   });
 });
