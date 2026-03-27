@@ -3,6 +3,8 @@ import type { MonopolyGameState, OwnableSpace, SafeUserInfo } from "@gamenite/sh
 import MonopolyBoard from "./MonopolyBoard";
 import { Dices } from "lucide-react";
 
+const REACTIONS = ["👍", "😄", "😮", "😢", "😡"];
+
 interface MonopolyGameProps {
   view: MonopolyGameState;
   players: SafeUserInfo[];
@@ -17,6 +19,8 @@ export default function MonopolyGame({
   makeMove,
 }: MonopolyGameProps) {
   const [showDeck, setShowDeck] = useState(false);
+  const [showReactPicker, setShowReactPicker] = useState(false);
+  const [boardReactions, setBoardReactions] = useState<Record<number, string>>({});
 
   /** All ownable spaces (properties, railroads, utilities) from the board */
   const ownableSpaces = view.board.filter(
@@ -25,6 +29,20 @@ export default function MonopolyGame({
   );
 
   const isMyTurn = view.currentPlayerIndex === userPlayerIndex;
+
+  const handleBoardReact = (emoji: string) => {
+    if (userPlayerIndex < 0) return;
+    setBoardReactions((prev) => ({ ...prev, [userPlayerIndex]: emoji }));
+    setShowReactPicker(false);
+
+    setTimeout(() => {
+      setBoardReactions((prev) => {
+        const next = { ...prev };
+        delete next[userPlayerIndex];
+        return next;
+      });
+    }, 3000);
+  };
 
   return (
     <div className="content spacedSection">
@@ -65,12 +83,52 @@ export default function MonopolyGame({
         </div>
       )}
 
+      {userPlayerIndex >= 0 && (
+        <div style={{ position: "relative", display: "inline-block" }}>
+          <button className="secondary narrow" onClick={() => setShowReactPicker((prev) => !prev)}>
+            React 😊
+          </button>
+          {showReactPicker && (
+            <div
+              style={{
+                position: "absolute",
+                top: "2rem",
+                left: 0,
+                display: "flex",
+                gap: "0.25rem",
+                background: "white",
+                border: "1px solid #ccc",
+                borderRadius: "0.5rem",
+                padding: "0.25rem",
+                zIndex: 10,
+              }}
+            >
+              {REACTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => handleBoardReact(emoji)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "1.25rem",
+                  }}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <MonopolyBoard
         board={view.board}
         players={view.players}
         userInfos={players}
         currentPlayerIndex={view.currentPlayerIndex}
         diceRoll={view.diceRoll}
+        boardReactions={boardReactions}
       />
       <div>
         <button className="secondary narrow" onClick={() => setShowDeck((prev) => !prev)}>

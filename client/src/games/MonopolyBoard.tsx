@@ -22,6 +22,7 @@ interface MonopolyBoardProps {
   userInfos: SafeUserInfo[];
   currentPlayerIndex: number;
   diceRoll?: [number, number];
+  boardReactions?: Record<number, string>;
 }
 
 const PLAYER_PIECES: LucideIcon[] = [Car, Ship, ChessKnight, Dices];
@@ -50,12 +51,14 @@ function SpaceTile({
   players,
   userInfos,
   currentPlayerIndex,
+  boardReactions,
 }: {
   space: BoardSpace;
   playersHere: Array<{ player: MonopolyPlayer; index: number }>;
   players: MonopolyPlayer[];
   userInfos: SafeUserInfo[];
   currentPlayerIndex: number;
+  boardReactions?: Record<number, string>;
 }) {
   const color = space.type === "property" ? space.colorGroup : undefined;
   const ownerLabel = getOwnerLabel(space, players, userInfos);
@@ -166,22 +169,45 @@ function SpaceTile({
         >
           {playersHere.map(({ index }) => {
             const pieceIcon = PLAYER_PIECES[index % PLAYER_PIECES.length];
+            const reaction = boardReactions?.[index];
             return (
               <span
+                key={index}
                 style={{
+                  position: "relative",
                   display: "inline-flex",
+                  flexDirection: "column",
                   alignItems: "center",
-                  justifyContent: "center",
-                  width: "1rem",
-                  height: "1rem",
-                  borderRadius: "999px",
-                  backgroundColor: index === currentPlayerIndex ? "blue" : "grey",
-                  color: "white",
-                  fontSize: "0.5rem",
-                  fontWeight: 700,
                 }}
               >
-                {React.createElement(pieceIcon, { size: 12, strokeWidth: 2.25 })}
+                {reaction && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: "-1.2rem",
+                      fontSize: "0.8rem",
+                      animation: "fadeIn 0.2s ease",
+                    }}
+                  >
+                    {reaction}
+                  </span>
+                )}
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "1rem",
+                    height: "1rem",
+                    borderRadius: "999px",
+                    backgroundColor: index === currentPlayerIndex ? "blue" : "grey",
+                    color: "white",
+                    fontSize: "0.5rem",
+                    fontWeight: 700,
+                  }}
+                >
+                  {React.createElement(pieceIcon, { size: 12, strokeWidth: 2.25 })}
+                </span>
               </span>
             );
           })}
@@ -227,6 +253,7 @@ export default function MonopolyBoard({
   userInfos,
   currentPlayerIndex,
   diceRoll,
+  boardReactions,
 }: MonopolyBoardProps) {
   const boardById = new Map(board.map((space) => [space.spaceId, space]));
   const renderSpace = (spaceId: number, gridColumn: number, gridRow: number) => {
@@ -268,6 +295,7 @@ export default function MonopolyBoard({
           players={players}
           userInfos={userInfos}
           currentPlayerIndex={currentPlayerIndex}
+          boardReactions={boardReactions}
         />
       </div>
     );
