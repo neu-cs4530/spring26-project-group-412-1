@@ -1,4 +1,5 @@
 import {
+  defaultProfilePhoto,
   PROFILE_PHOTO_MAX_BYTES,
   PROFILE_PHOTO_MIME_TYPES,
   type ProfilePhotoMimeType,
@@ -61,7 +62,7 @@ export async function populateSafeUserInfo(userId: string): Promise<SafeUserInfo
           dataBase64: record.profilePhoto.dataBase64,
           sizeBytes: record.profilePhoto.sizeBytes,
         }
-      : undefined,
+      : defaultProfilePhoto,
   });
 }
 
@@ -92,6 +93,7 @@ export async function createUser(
     username,
     createdAt,
     display: username,
+    profilePhoto: defaultProfilePhoto,
   });
 }
 

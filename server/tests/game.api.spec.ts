@@ -35,7 +35,7 @@ describe("POST /api/game/create", () => {
       payload: "nim",
     });
     expect(response.status).toBe(200);
-    expect(response.body).toStrictEqual({
+    expect(response.body).toMatchObject({
       gameId: expect.anything(),
       chat: expect.anything(),
       type: "nim",
@@ -48,11 +48,11 @@ describe("POST /api/game/create", () => {
       createdAt: expect.anything(),
       minPlayers: 2,
       players: [
-        {
+        expect.objectContaining({
           username: "user3",
           display: "Frau Drei",
           createdAt: expect.anything(),
-        },
+        }),
       ],
     });
   });

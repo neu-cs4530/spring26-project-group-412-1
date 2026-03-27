@@ -9,8 +9,10 @@ import {
   zMonopolyMove,
 } from "@gamenite/shared";
 import { type GameLogic } from "./gameLogic.ts";
+import { z } from "zod";
 
 const STARTING_MONEY = 1500;
+<<<<<<< us2--monopoly-turn-system-and-smaller-special-cards
 const GO_MONEY = 200;
 const BOARD_SIZE = 40;
 const JAIL_SPACE_ID = 10;
@@ -92,6 +94,13 @@ const COMMUNITY_CHEST_DECK: MonopolyCard[] = [
     effect: { type: "go_to_jail" },
   },
 ];
+=======
+const BOARD_SIZE = 40;
+
+const zMonopolyMove = z.object({
+  type: z.literal("ROLL_DICE"),
+});
+>>>>>>> main
 
 /**
  * Initial board setup with all 40 Monopoly spaces.
@@ -295,6 +304,7 @@ function createInitialBoard(): BoardSpace[] {
   ];
 }
 
+<<<<<<< us2--monopoly-turn-system-and-smaller-special-cards
 function cloneState(state: MonopolyGameState): MonopolyGameState {
   return {
     ...state,
@@ -591,6 +601,10 @@ function describeTurn(events: MonopolyTurnEvent[]): string {
   }
 
   return ` ${parts.join(", ")}`;
+=======
+function rollDie() {
+  return Math.floor(Math.random() * 6) + 1;
+>>>>>>> main
 }
 
 export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
@@ -616,12 +630,38 @@ export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
 
   update: (state, payload, playerIndex) => {
     const move = zMonopolyMove.safeParse(payload);
+<<<<<<< us2--monopoly-turn-system-and-smaller-special-cards
     if (!move.success) return null;
 
     switch (move.data.type) {
       case "roll":
         return resolveMonopolyTurn(state, playerIndex, rollDice());
     }
+=======
+    if (move.error) return null;
+    if (state.phase !== "playing") return null;
+    if (playerIndex !== state.currentPlayerIndex) return null;
+
+    const dieOne = rollDie();
+    const dieTwo = rollDie();
+    const total = dieOne + dieTwo;
+
+    const updatedPlayers = state.players.map((player, index) =>
+      index === playerIndex
+        ? {
+            ...player,
+            position: (player.position + total) % BOARD_SIZE,
+          }
+        : player,
+    );
+
+    return {
+      ...state,
+      players: updatedPlayers,
+      diceRoll: [dieOne, dieTwo],
+      currentPlayerIndex: (state.currentPlayerIndex + 1) % state.players.length,
+    };
+>>>>>>> main
   },
 
   isDone: (state) => state.phase === "finished",
@@ -630,10 +670,27 @@ export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
 
   tagView: (view) => ({ type: "monopoly", view }),
 
+<<<<<<< us2--monopoly-turn-system-and-smaller-special-cards
   describeMove: (_prevState, newState, move) => {
     const parsedMove = zMonopolyMove.safeParse(move);
     if (!parsedMove.success) return " made an invalid Monopoly move";
     return describeTurn(newState.lastTurnEvents);
+=======
+  describeMove: (_prevState, newState, payload) => {
+    const move = zMonopolyMove.safeParse(payload);
+    if (!move.success) return " made a move";
+
+    const [dieOne, dieTwo] = newState.diceRoll ?? [0, 0];
+    const total = dieOne + dieTwo;
+    const landedSpace =
+      newState.board[
+        newState.players[
+          (newState.currentPlayerIndex + newState.players.length - 1) % newState.players.length
+        ].position
+      ];
+
+    return ` rolled ${total} and landed on ${landedSpace?.name ?? "a space"}`;
+>>>>>>> main
   },
 };
 

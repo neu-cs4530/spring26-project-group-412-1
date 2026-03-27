@@ -17,5 +17,8 @@
     "build": "npm run build -w=client",
     "start": "npm start -w=server",
     "playwright": "npm run playwright -w=client"
+  },
+  "dependencies": {
+    "lucide-react": "^1.7.0"
   }
 }
