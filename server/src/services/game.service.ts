@@ -176,27 +176,29 @@ export async function updateGame(
   user: UserWithId,
   move: unknown,
 ): Promise<GameUpdateResult> {
-  const game = await GameRepo.find(gameId);
-  if (!game) throw new Error(`user ${user.username} acted on an invalid game`);
-  if (!game.state) {
-    throw new Error(`user ${user.username} made a move in game of that hadn't started`);
-  }
-  const playerIndex = game.players.findIndex((userId) => userId === user.userId);
-  if (playerIndex < 0) {
-    throw new Error(`user ${user.username} made a move in a game they weren't playing`);
-  }
-  const result = gameServices[game.type].update(game.state, move, playerIndex, game.players);
-  if (!result) throw new Error(`user ${user.username} made an invalid move in ${game.type}`);
+  return withKeyedLock(gameLockKey(gameId), async () => {
+    const game = await GameRepo.find(gameId);
+    if (!game) throw new Error(`user ${user.username} acted on an invalid game`);
+    if (!game.state) {
+      throw new Error(`user ${user.username} made a move in game of that hadn't started`);
+    }
+    const playerIndex = game.players.findIndex((userId) => userId === user.userId);
+    if (playerIndex < 0) {
+      throw new Error(`user ${user.username} made a move in a game they weren't playing`);
+    }
+    const result = gameServices[game.type].update(game.state, move, playerIndex, game.players);
+    if (!result) throw new Error(`user ${user.username} made an invalid move in ${game.type}`);
 
-  game.state = result.state;
-  game.done = game.done || result.done;
-  await GameRepo.set(gameId, game);
+    game.state = result.state;
+    game.done = game.done || result.done;
+    await GameRepo.set(gameId, game);
 
-  return {
-    views: result.views,
-    moveDescription: result.moveDescription,
-    chatId: game.chat,
-  };
+    return {
+      views: result.views,
+      moveDescription: result.moveDescription,
+      chatId: game.chat,
+    };
+  });
 }
 
 /**

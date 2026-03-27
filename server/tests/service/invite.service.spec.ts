@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { enforceAuth } from "../../src/services/auth.service.ts";
-import { createGame, getGameById, joinGame } from "../../src/services/game.service.ts";
+import { GameRepo, InvitePendingByRoomInviteeRepo } from "../../src/repository.ts";
+import { createGame, getGameById, joinGame, startGame } from "../../src/services/game.service.ts";
 import {
   acceptInvite,
   cancelInvite,
@@ -8,12 +9,13 @@ import {
   declineInvite,
   getInvitesForInvitee,
 } from "../../src/services/invite.service.ts";
-import { GameRepo, InviteRepo } from "../../src/repository.ts";
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((innerResolve) => {
+    resolve = innerResolve;
   });
+  return { promise, resolve };
 }
 
 afterEach(() => {
@@ -108,102 +110,187 @@ describe("invite.service", () => {
     expect(canceled.status).toBe("canceled");
   });
 
-  it("serializes concurrent duplicate invite creation for the same room and invitee", async () => {
+  it("serializes concurrent joins so only one player claims the last slot", async () => {
+    const host = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const joiner1 = await enforceAuth({ username: "user2", password: "pwd2222" });
+    const joiner2 = await enforceAuth({ username: "user3", password: "pwd3333" });
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    const game = await createGame(host, "nim", now);
+
+    const originalSet = GameRepo.set.bind(GameRepo);
+    const firstSetReached = deferred();
+    const allowFirstSet = deferred();
+    let blockedFirstSet = false;
+
+    const setSpy = vi.spyOn(GameRepo, "set").mockImplementation(async (key, value) => {
+      if (key === game.gameId && !blockedFirstSet) {
+        blockedFirstSet = true;
+        firstSetReached.resolve();
+        await allowFirstSet.promise;
+      }
+      return originalSet(key, value);
+    });
+
+    const firstJoin = joinGame(game.gameId, joiner1);
+    await firstSetReached.promise;
+    const secondJoin = joinGame(game.gameId, joiner2);
+    await Promise.resolve();
+
+    expect(setSpy).toHaveBeenCalledTimes(1);
+
+    allowFirstSet.resolve();
+
+    await expect(firstJoin).resolves.toMatchObject({
+      players: expect.arrayContaining([expect.objectContaining({ username: "user2" })]),
+    });
+    await expect(secondJoin).rejects.toThrow("joining full");
+
+    const updatedGame = await getGameById(game.gameId);
+    expect(updatedGame).not.toBeNull();
+    expect(updatedGame!.players.map((player) => player.username).toSorted()).toStrictEqual([
+      "user1",
+      "user2",
+    ]);
+  });
+
+  it("serializes invite acceptance for the last slot and expires the loser", async () => {
+    const host = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const invitee1 = await enforceAuth({ username: "user2", password: "pwd2222" });
+    const invitee2 = await enforceAuth({ username: "user3", password: "pwd3333" });
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    const game = await createGame(host, "nim", now);
+    const invite1 = await createInvite(host, game.gameId, "user2", now);
+    const invite2 = await createInvite(host, game.gameId, "user3", now);
+
+    const originalSet = GameRepo.set.bind(GameRepo);
+    const firstSetReached = deferred();
+    const allowFirstSet = deferred();
+    let blockedFirstSet = false;
+
+    vi.spyOn(GameRepo, "set").mockImplementation(async (key, value) => {
+      if (key === game.gameId && !blockedFirstSet) {
+        blockedFirstSet = true;
+        firstSetReached.resolve();
+        await allowFirstSet.promise;
+      }
+      return originalSet(key, value);
+    });
+
+    const firstAccept = acceptInvite(invite1.inviteId, invitee1, new Date(now.getTime() + 10_000));
+    await firstSetReached.promise;
+    const secondAccept = acceptInvite(invite2.inviteId, invitee2, new Date(now.getTime() + 10_000));
+
+    allowFirstSet.resolve();
+
+    const accepted = await firstAccept;
+    expect(accepted.status).toBe("accepted");
+    await expect(secondAccept).rejects.toThrow("joining full");
+
+    const invitee1History = await getInvitesForInvitee(
+      invitee1,
+      new Date(now.getTime() + 20_000),
+      true,
+    );
+    const invitee2History = await getInvitesForInvitee(
+      invitee2,
+      new Date(now.getTime() + 20_000),
+      true,
+    );
+    expect(invitee1History[0].status).toBe("accepted");
+    expect(invitee2History[0].status).toBe("expired");
+
+    const updatedGame = await getGameById(game.gameId);
+    expect(updatedGame).not.toBeNull();
+    expect(updatedGame!.players.map((player) => player.username).toSorted()).toStrictEqual([
+      "user1",
+      "user2",
+    ]);
+  });
+
+  it("serializes duplicate invite creation attempts for the same room and invitee", async () => {
     const inviter = await enforceAuth({ username: "user1", password: "pwd1111" });
     const invitee = await enforceAuth({ username: "user2", password: "pwd2222" });
     const now = new Date("2026-01-01T00:00:00.000Z");
     const game = await createGame(inviter, "nim", now);
 
-    const originalInviteAdd = InviteRepo.add.bind(InviteRepo);
-    vi.spyOn(InviteRepo, "add").mockImplementation(async (value) => {
-      await delay(10);
-      return originalInviteAdd(value);
-    });
+    const originalPendingSet = InvitePendingByRoomInviteeRepo.set.bind(
+      InvitePendingByRoomInviteeRepo,
+    );
+    const firstSetReached = deferred();
+    const allowFirstSet = deferred();
+    let blockedFirstSet = false;
 
-    const results = await Promise.allSettled([
-      createInvite(inviter, game.gameId, "user2", now),
-      createInvite(inviter, game.gameId, "user2", new Date(now.getTime() + 1_000)),
-    ]);
+    const pendingSetSpy = vi
+      .spyOn(InvitePendingByRoomInviteeRepo, "set")
+      .mockImplementation(async (key, value) => {
+        if (!blockedFirstSet) {
+          blockedFirstSet = true;
+          firstSetReached.resolve();
+          await allowFirstSet.promise;
+        }
+        return originalPendingSet(key, value);
+      });
 
-    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
-    expect(results[1].status).toBe("rejected");
-    if (results[1].status === "rejected") {
-      expect(`${results[1].reason}`).toContain("Duplicate pending invite");
-    }
+    const firstCreate = createInvite(inviter, game.gameId, "user2", now);
+    await firstSetReached.promise;
+    const secondCreate = createInvite(
+      inviter,
+      game.gameId,
+      "user2",
+      new Date(now.getTime() + 1_000),
+    );
+    await Promise.resolve();
+
+    expect(pendingSetSpy).toHaveBeenCalledTimes(1);
+
+    allowFirstSet.resolve();
+
+    await expect(firstCreate).resolves.toBeDefined();
+    await expect(secondCreate).rejects.toThrow("Duplicate pending invite");
 
     const invites = await getInvitesForInvitee(invitee, now, true);
     expect(invites).toHaveLength(1);
     expect(invites[0].status).toBe("pending");
   });
 
-  it("serializes concurrent joins competing for the last room slot", async () => {
+  it("prevents startGame from racing ahead of a blocked join", async () => {
     const host = await enforceAuth({ username: "user1", password: "pwd1111" });
-    const user2 = await enforceAuth({ username: "user2", password: "pwd2222" });
-    const user3 = await enforceAuth({ username: "user3", password: "pwd3333" });
+    const joiner = await enforceAuth({ username: "user2", password: "pwd2222" });
     const now = new Date("2026-01-01T00:00:00.000Z");
     const game = await createGame(host, "nim", now);
 
-    const originalGameSet = GameRepo.set.bind(GameRepo);
-    vi.spyOn(GameRepo, "set").mockImplementation(async (key, value) => {
-      await delay(10);
-      return originalGameSet(key, value);
+    const originalSet = GameRepo.set.bind(GameRepo);
+    const firstSetReached = deferred();
+    const allowFirstSet = deferred();
+    let blockedFirstSet = false;
+
+    const setSpy = vi.spyOn(GameRepo, "set").mockImplementation(async (key, value) => {
+      if (key === game.gameId && !blockedFirstSet) {
+        blockedFirstSet = true;
+        firstSetReached.resolve();
+        await allowFirstSet.promise;
+      }
+      return originalSet(key, value);
     });
 
-    const results = await Promise.allSettled([
-      joinGame(game.gameId, user2),
-      joinGame(game.gameId, user3),
-    ]);
+    const joinPromise = joinGame(game.gameId, joiner);
+    await firstSetReached.promise;
+    const startPromise = startGame(game.gameId, host);
+    await Promise.resolve();
 
-    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect(setSpy).toHaveBeenCalledTimes(1);
+
+    allowFirstSet.resolve();
+
+    await expect(joinPromise).resolves.toBeDefined();
+    await expect(startPromise).resolves.toBeDefined();
 
     const updatedGame = await getGameById(game.gameId);
     expect(updatedGame).not.toBeNull();
-    expect(updatedGame!.players).toHaveLength(2);
-
-    const usernames = updatedGame!.players.map((player) => player.username);
-    expect(usernames).toContain("user1");
-    expect(
-      usernames.filter((username) => username === "user2" || username === "user3"),
-    ).toHaveLength(1);
-  });
-
-  it("serializes concurrent invite acceptance for the last room slot", async () => {
-    const host = await enforceAuth({ username: "user1", password: "pwd1111" });
-    const user2 = await enforceAuth({ username: "user2", password: "pwd2222" });
-    const user3 = await enforceAuth({ username: "user3", password: "pwd3333" });
-    const now = new Date("2026-01-01T00:00:00.000Z");
-    const game = await createGame(host, "nim", now);
-    const inviteForUser2 = await createInvite(host, game.gameId, "user2", now);
-    const inviteForUser3 = await createInvite(host, game.gameId, "user3", now);
-
-    const originalGameSet = GameRepo.set.bind(GameRepo);
-    vi.spyOn(GameRepo, "set").mockImplementation(async (key, value) => {
-      await delay(10);
-      return originalGameSet(key, value);
-    });
-
-    const results = await Promise.allSettled([
-      acceptInvite(inviteForUser2.inviteId, user2, new Date(now.getTime() + 60_000)),
-      acceptInvite(inviteForUser3.inviteId, user3, new Date(now.getTime() + 60_000)),
+    expect(updatedGame!.status).toBe("active");
+    expect(updatedGame!.players.map((player) => player.username).toSorted()).toStrictEqual([
+      "user1",
+      "user2",
     ]);
-
-    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
-
-    const updatedGame = await getGameById(game.gameId);
-    expect(updatedGame).not.toBeNull();
-    expect(updatedGame!.players).toHaveLength(2);
-
-    const inviteeUsernames = updatedGame!.players
-      .map((player) => player.username)
-      .filter((username) => username === "user2" || username === "user3");
-    expect(inviteeUsernames).toHaveLength(1);
-
-    const user2History = await getInvitesForInvitee(user2, new Date(now.getTime() + 60_000), true);
-    const user3History = await getInvitesForInvitee(user3, new Date(now.getTime() + 60_000), true);
-    const finalStatuses = [user2History[0]?.status, user3History[0]?.status].toSorted();
-    expect(finalStatuses).toStrictEqual(["accepted", "expired"]);
   });
 });

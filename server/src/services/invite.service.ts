@@ -248,6 +248,15 @@ export async function acceptInvite(
     try {
       await joinGame(invite.roomId, invitee);
     } catch (err) {
+      if (err instanceof Error && err.message.includes("joining game they are in already")) {
+        return updateInviteStatus(inviteId, (current) => ({
+          ...current,
+          status: "accepted",
+          updatedAt: now.toISOString(),
+          respondedAt: now.toISOString(),
+        }));
+      }
+
       if (err instanceof Error) {
         if (
           err.message.includes("invalid game") ||
