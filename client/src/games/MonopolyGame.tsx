@@ -11,7 +11,7 @@ import type { GameProps } from "../util/types.ts";
 function describeEvent(event: MonopolyTurnEvent): string {
   switch (event.type) {
     case "rolled":
-      return `Rolled ${event.dice[0]} + ${event.dice[1]}`;
+      return `Rolled ${event.dice[0] + event.dice[1]}`;
     case "moved":
       return `Moved to ${event.destinationName}`;
     case "landed":

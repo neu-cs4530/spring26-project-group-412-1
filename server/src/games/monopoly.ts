@@ -564,7 +564,7 @@ function describeTurn(events: MonopolyTurnEvent[]): string {
   for (const event of events) {
     switch (event.type) {
       case "rolled":
-        parts.push(`rolled ${event.dice[0]} + ${event.dice[1]}`);
+        parts.push(`rolled ${event.dice[0] + event.dice[1]}`);
         break;
       case "moved":
         parts.push(`moved to ${event.destinationName}`);
