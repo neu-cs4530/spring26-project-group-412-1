@@ -84,6 +84,23 @@ export const declineInviteRequest = async (
   }
 };
 
+export const getSentInvites = async (
+  auth: UserAuth,
+  includeHistory = true,
+): APIResponse<InviteInfo[]> => {
+  try {
+    const res = await api.post<InviteInfo[] | ErrorMsg>(`${INVITE_API_URL}/sent`, {
+      auth,
+      payload: { includeHistory },
+    });
+
+    if ("error" in res.data) return res.data;
+    return res.data.map(reviveInviteDates);
+  } catch (error) {
+    return exceptionToErrorMsg(error);
+  }
+};
+
 // Temporary compatibility aliases during client refactor.
 export const getMyInvites = getMineInvites;
 export const createInviteRequest = sendInviteRequest;
