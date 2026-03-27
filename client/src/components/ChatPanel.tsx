@@ -11,11 +11,11 @@ interface ChatProps {
  * A chat panel allows viewing and updating messages in live chat
  */
 export default function ChatPanel({ chatId }: ChatProps) {
-  const { messages, handleMessageCreation } = useSocketsForChat(chatId);
+  const { messages, reactions, handleMessageCreation, handleReact } = useSocketsForChat(chatId);
   return (
     messages && (
       <div className="chatContainer">
-        <MessageList messages={messages} />
+        <MessageList messages={messages} reactions={reactions} handleReact={handleReact} />
         <MessageCreation handleMessageCreation={handleMessageCreation} />
       </div>
     )

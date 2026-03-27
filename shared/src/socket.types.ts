@@ -10,6 +10,19 @@ import { type WithAuth } from "./auth.types.ts";
 import { type GameMakeMovePayload, type GamePlayInfo, type TaggedGameView } from "./game.types.ts";
 import { type SafeUserInfo } from "./user.types.ts";
 
+export interface ChatReactPayload {
+  chatId: string;
+  messageId: string;
+  emoji: string;
+}
+
+export interface ChatNewReactionPayload {
+  chatId: string;
+  messageId: string;
+  emoji: string;
+  user: SafeUserInfo;
+}
+
 /**
  * The Socket.io interface for client to server communication
  */
@@ -17,6 +30,7 @@ export interface ClientToServerEvents {
   chatJoin: (payload: WithAuth<string>) => void;
   chatLeave: (payload: WithAuth<string>) => void;
   chatSendMessage: (payload: WithAuth<NewMessagePayload>) => void;
+  chatReact: (payload: WithAuth<ChatReactPayload>) => void;
   gameJoinAsPlayer: (payload: WithAuth<string>) => void;
   gameMakeMove: (payload: WithAuth<GameMakeMovePayload>) => void;
   gameStart: (payload: WithAuth<string>) => void;
@@ -30,6 +44,7 @@ export interface ServerToClientEvents {
   chatJoined: (payload: ChatInfo) => void;
   chatMoveLog: (payload: ChatMoveLogPayload) => void;
   chatNewMessage: (payload: ChatNewMessagePayload) => void;
+  chatNewReaction: (payload: ChatNewReactionPayload) => void;
   chatUserJoined: (payload: ChatUserJoinedPayload) => void;
   chatUserLeft: (payload: ChatUserLeftPayload) => void;
   gamePlayersUpdated: (payload: SafeUserInfo[]) => void;

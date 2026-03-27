@@ -4,23 +4,20 @@ import type { ChatMessage } from "../util/types.ts";
 import { useEffect, useRef, useState } from "react";
 import useTimeSince from "../hooks/useTimeSince.ts";
 import UserLink from "./UserLink.tsx";
+import type { Reaction } from "../hooks/useSocketsForChat.ts";
 
 const REACTIONS = ["👍", "😄", "😮", "😢", "😡"];
 
-interface Reaction {
-  emoji: string;
-  username: string;
-}
-
 interface MessageListProps {
   messages: ChatMessage[];
+  reactions: Record<string, Reaction[]>;
+  handleReact: (messageId: string, emoji: string) => void;
 }
 
-export default function MessageList({ messages }: MessageListProps) {
+export default function MessageList({ messages, reactions, handleReact }: MessageListProps) {
   const { user } = useLoginContext();
   const chatWindowRef = useRef<HTMLDivElement | null>(null);
   const timeSince = useTimeSince();
-  const [reactions, setReactions] = useState<Record<string, Reaction[]>>({});
   const [openPickerFor, setOpenPickerFor] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,21 +25,8 @@ export default function MessageList({ messages }: MessageListProps) {
     chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
   }, [messages]);
 
-  const handleReact = (messageId: string, emoji: string) => {
-    setReactions((prev) => {
-      const existing = prev[messageId] ?? [];
-      const alreadyReacted = existing.some((r) => r.username === user.username);
-      if (alreadyReacted) {
-        return {
-          ...prev,
-          [messageId]: existing.filter((r) => r.username !== user.username),
-        };
-      }
-      return {
-        ...prev,
-        [messageId]: [...existing, { emoji, username: user.username }],
-      };
-    });
+  const handlePickReaction = (messageId: string, emoji: string) => {
+    handleReact(messageId, emoji);
     setOpenPickerFor(null);
   };
 
@@ -110,7 +94,7 @@ export default function MessageList({ messages }: MessageListProps) {
                       <button
                         key={emoji}
                         className="chatReactOption"
-                        onClick={() => handleReact(message.messageId, emoji)}
+                        onClick={() => handlePickReaction(message.messageId, emoji)}
                       >
                         {emoji}
                       </button>

@@ -73,3 +73,33 @@ export const socketSendMessage: SocketAPI = (socket, io) => async (body) => {
     logSocketError(socket, err);
   }
 };
+
+/**
+ * Handle a socket request to react to a message: broadcast the reaction
+ * to everyone in the chat.
+ */
+export const socketReact: SocketAPI = (socket, io) => async (body) => {
+  try {
+    const {
+      auth,
+      payload: { chatId, messageId, emoji },
+    } = withAuth(
+      z.object({
+        chatId: z.string(),
+        messageId: z.string(),
+        emoji: z.string(),
+      }),
+    ).parse(body);
+
+    const user = await enforceAuth(auth);
+
+    io.to(chatId).emit("chatNewReaction", {
+      chatId,
+      messageId,
+      emoji,
+      user: await populateSafeUserInfo(user.userId),
+    });
+  } catch (err) {
+    logSocketError(socket, err);
+  }
+};

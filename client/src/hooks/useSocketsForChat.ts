@@ -4,6 +4,7 @@ import type {
   ChatInfo,
   ChatMoveLogPayload,
   ChatNewMessagePayload,
+  ChatNewReactionPayload,
   ChatUserJoinedPayload,
 } from "@gamenite/shared";
 import type { ChatMessage } from "../util/types.ts";
@@ -12,9 +13,6 @@ import useAuth from "./useAuth.ts";
 /** Extract the timestamp from any ChatMessage variant */
 function messageTime(msg: ChatMessage): number {
   const date = "createdAt" in msg ? msg.createdAt : msg.dateTime;
-  // TypeScript claims `date` is type `Date`, but this isn't always accurate:
-  // `createdAt` times that are sent via JSON are turned into strings. Here
-  // we use a slightly hacky fix to ensure we'll get a correct date.
   if (typeof date === "string") return new Date(date).getTime();
   return date.getTime();
 }
@@ -38,27 +36,32 @@ function mergeByTime(a: ChatMessage[], b: ChatMessage[]): ChatMessage[] {
   return result;
 }
 
+export interface Reaction {
+  emoji: string;
+  username: string;
+}
+
 /**
  * Custom hook to manage the socket connection for a chat.
  * @throws if outside a LoginContext
  * @returns an object containing
  * - `messages`: The current list of messages in the chat, including
  *   move log entries interleaved chronologically.
+ * - `reactions`: A map of messageId to list of reactions
  * - `handleMessageCreation`: Sends a new message to the chat
+ * - `handleReact`: Sends a reaction to a message
  */
-
 export default function useSocketsForChat(chatId: string) {
   const auth = useAuth();
   const { user, socket } = useLoginContext();
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
+  const [reactions, setReactions] = useState<Record<string, Reaction[]>>({});
 
   useEffect(() => {
     const handleChatJoined = (chat: ChatInfo) => {
       if (chat.chatId !== chatId) return;
       socket.off("chatJoined", handleChatJoined);
 
-      // Build the initial message list by merging stored messages and
-      // persisted move log entries chronologically (both are already sorted)
       const chatMessages: ChatMessage[] = chat.messages;
       const moveLogMessages: ChatMessage[] = chat.moveLog.map((entry, index) => ({
         messageId: `movelog-init-${index}`,
@@ -77,6 +80,7 @@ export default function useSocketsForChat(chatId: string) {
       socket.on("chatNewMessage", handleNewMessage);
       socket.on("chatUserJoined", handleUserJoined);
       socket.on("chatMoveLog", handleMoveLog);
+      socket.on("chatNewReaction", handleNewReaction);
     };
 
     const handleNewMessage = (payload: ChatNewMessagePayload) => {
@@ -122,6 +126,21 @@ export default function useSocketsForChat(chatId: string) {
       }
     };
 
+    const handleNewReaction = (payload: ChatNewReactionPayload) => {
+      if (payload.chatId !== chatId) return;
+      setReactions((prev) => {
+        const existing = prev[payload.messageId] ?? [];
+        const filtered = existing.filter((r) => r.username !== payload.user.username);
+        return {
+          ...prev,
+          [payload.messageId]: [
+            ...filtered,
+            { emoji: payload.emoji, username: payload.user.username },
+          ],
+        };
+      });
+    };
+
     socket.emit("chatJoin", { auth, payload: chatId });
     socket.on("chatJoined", handleChatJoined);
     return () => {
@@ -129,6 +148,7 @@ export default function useSocketsForChat(chatId: string) {
       socket.off("chatUserJoined", handleUserJoined);
       socket.off("chatJoined", handleChatJoined);
       socket.off("chatMoveLog", handleMoveLog);
+      socket.off("chatNewReaction", handleNewReaction);
       socket.emit("chatLeave", { auth, payload: chatId });
     };
   }, [socket, auth, chatId, user]);
@@ -137,5 +157,9 @@ export default function useSocketsForChat(chatId: string) {
     socket.emit("chatSendMessage", { auth, payload: { chatId, text } });
   }
 
-  return { messages, handleMessageCreation };
+  function handleReact(messageId: string, emoji: string) {
+    socket.emit("chatReact", { auth, payload: { chatId, messageId, emoji } });
+  }
+
+  return { messages, reactions, handleMessageCreation, handleReact };
 }
