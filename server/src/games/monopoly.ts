@@ -5,16 +5,37 @@ import { z } from "zod";
 
 const STARTING_MONEY = 1500;
 const BOARD_SIZE = 40;
+const GO_MONEY = 200;
+const INCOME_TAX = 200;
+const LUXURY_TAX = 100;
 
 const zMonopolyMove = z.object({
   type: z.literal("ROLL_DICE"),
 });
 
-/**
- * Initial board setup with all 40 Monopoly spaces
- */
-function createInitialBoard() {
-  return [
+type MonopolyPlayer = MonopolyGameState["players"][number];
+type BoardSpace = MonopolyGameState["board"][number];
+
+type OwnableSpace = BoardSpace & {
+  price: number;
+  rent: number;
+  ownerId?: string;
+};
+
+function isOwnableSpace(space: BoardSpace): space is OwnableSpace {
+  return space.type === "property" || space.type === "railroad" || space.type === "utility";
+}
+
+function createInitialBoard(): MonopolyGameState["board"] {
+  const board: Array<
+    | BoardSpace
+    | (BoardSpace & {
+        price: number;
+        rent: number;
+        ownerId?: string;
+        colorGroup?: string;
+      })
+  > = [
     { spaceId: 0, name: "Go", type: "go" as const },
     {
       spaceId: 1,
@@ -23,6 +44,7 @@ function createInitialBoard() {
       price: 60,
       rent: 2,
       colorGroup: "brown",
+      ownerId: undefined,
     },
     { spaceId: 2, name: "Community Chest", type: "community_chest" as const },
     {
@@ -32,9 +54,17 @@ function createInitialBoard() {
       price: 60,
       rent: 4,
       colorGroup: "brown",
+      ownerId: undefined,
     },
     { spaceId: 4, name: "Income Tax", type: "tax" as const },
-    { spaceId: 5, name: "Reading Railroad", type: "railroad" as const, price: 200, rent: 25 },
+    {
+      spaceId: 5,
+      name: "Reading Railroad",
+      type: "railroad" as const,
+      price: 200,
+      rent: 25,
+      ownerId: undefined,
+    },
     {
       spaceId: 6,
       name: "Oriental Avenue",
@@ -42,6 +72,7 @@ function createInitialBoard() {
       price: 100,
       rent: 6,
       colorGroup: "lightblue",
+      ownerId: undefined,
     },
     { spaceId: 7, name: "Chance", type: "chance" as const },
     {
@@ -51,6 +82,7 @@ function createInitialBoard() {
       price: 100,
       rent: 6,
       colorGroup: "lightblue",
+      ownerId: undefined,
     },
     {
       spaceId: 9,
@@ -59,6 +91,7 @@ function createInitialBoard() {
       price: 120,
       rent: 8,
       colorGroup: "lightblue",
+      ownerId: undefined,
     },
     { spaceId: 10, name: "Jail", type: "jail" as const },
     {
@@ -68,8 +101,16 @@ function createInitialBoard() {
       price: 140,
       rent: 10,
       colorGroup: "pink",
+      ownerId: undefined,
     },
-    { spaceId: 12, name: "Electric Company", type: "utility" as const, price: 150, rent: 4 },
+    {
+      spaceId: 12,
+      name: "Electric Company",
+      type: "utility" as const,
+      price: 150,
+      rent: 4,
+      ownerId: undefined,
+    },
     {
       spaceId: 13,
       name: "States Avenue",
@@ -77,6 +118,7 @@ function createInitialBoard() {
       price: 140,
       rent: 10,
       colorGroup: "pink",
+      ownerId: undefined,
     },
     {
       spaceId: 14,
@@ -85,8 +127,16 @@ function createInitialBoard() {
       price: 160,
       rent: 12,
       colorGroup: "pink",
+      ownerId: undefined,
     },
-    { spaceId: 15, name: "Pennsylvania Railroad", type: "railroad" as const, price: 200, rent: 25 },
+    {
+      spaceId: 15,
+      name: "Pennsylvania Railroad",
+      type: "railroad" as const,
+      price: 200,
+      rent: 25,
+      ownerId: undefined,
+    },
     {
       spaceId: 16,
       name: "St. James Place",
@@ -94,6 +144,7 @@ function createInitialBoard() {
       price: 180,
       rent: 14,
       colorGroup: "orange",
+      ownerId: undefined,
     },
     { spaceId: 17, name: "Community Chest", type: "community_chest" as const },
     {
@@ -103,6 +154,7 @@ function createInitialBoard() {
       price: 180,
       rent: 14,
       colorGroup: "orange",
+      ownerId: undefined,
     },
     {
       spaceId: 19,
@@ -111,6 +163,7 @@ function createInitialBoard() {
       price: 200,
       rent: 16,
       colorGroup: "orange",
+      ownerId: undefined,
     },
     { spaceId: 20, name: "Free Parking", type: "free_parking" as const },
     {
@@ -120,6 +173,7 @@ function createInitialBoard() {
       price: 220,
       rent: 18,
       colorGroup: "red",
+      ownerId: undefined,
     },
     { spaceId: 22, name: "Chance", type: "chance" as const },
     {
@@ -129,6 +183,7 @@ function createInitialBoard() {
       price: 220,
       rent: 18,
       colorGroup: "red",
+      ownerId: undefined,
     },
     {
       spaceId: 24,
@@ -137,8 +192,16 @@ function createInitialBoard() {
       price: 240,
       rent: 20,
       colorGroup: "red",
+      ownerId: undefined,
     },
-    { spaceId: 25, name: "B&O Railroad", type: "railroad" as const, price: 200, rent: 25 },
+    {
+      spaceId: 25,
+      name: "B&O Railroad",
+      type: "railroad" as const,
+      price: 200,
+      rent: 25,
+      ownerId: undefined,
+    },
     {
       spaceId: 26,
       name: "Atlantic Avenue",
@@ -146,6 +209,7 @@ function createInitialBoard() {
       price: 260,
       rent: 22,
       colorGroup: "yellow",
+      ownerId: undefined,
     },
     {
       spaceId: 27,
@@ -154,8 +218,16 @@ function createInitialBoard() {
       price: 260,
       rent: 22,
       colorGroup: "yellow",
+      ownerId: undefined,
     },
-    { spaceId: 28, name: "Water Works", type: "utility" as const, price: 150, rent: 4 },
+    {
+      spaceId: 28,
+      name: "Water Works",
+      type: "utility" as const,
+      price: 150,
+      rent: 4,
+      ownerId: undefined,
+    },
     {
       spaceId: 29,
       name: "Marvin Gardens",
@@ -163,6 +235,7 @@ function createInitialBoard() {
       price: 280,
       rent: 24,
       colorGroup: "yellow",
+      ownerId: undefined,
     },
     { spaceId: 30, name: "Go To Jail", type: "go_to_jail" as const },
     {
@@ -172,6 +245,7 @@ function createInitialBoard() {
       price: 300,
       rent: 26,
       colorGroup: "green",
+      ownerId: undefined,
     },
     {
       spaceId: 32,
@@ -180,6 +254,7 @@ function createInitialBoard() {
       price: 300,
       rent: 26,
       colorGroup: "green",
+      ownerId: undefined,
     },
     { spaceId: 33, name: "Community Chest", type: "community_chest" as const },
     {
@@ -189,8 +264,16 @@ function createInitialBoard() {
       price: 320,
       rent: 28,
       colorGroup: "green",
+      ownerId: undefined,
     },
-    { spaceId: 35, name: "Short Line Railroad", type: "railroad" as const, price: 200, rent: 25 },
+    {
+      spaceId: 35,
+      name: "Short Line Railroad",
+      type: "railroad" as const,
+      price: 200,
+      rent: 25,
+      ownerId: undefined,
+    },
     { spaceId: 36, name: "Chance", type: "chance" as const },
     {
       spaceId: 37,
@@ -199,6 +282,7 @@ function createInitialBoard() {
       price: 350,
       rent: 35,
       colorGroup: "darkblue",
+      ownerId: undefined,
     },
     { spaceId: 38, name: "Luxury Tax", type: "tax" as const },
     {
@@ -208,12 +292,220 @@ function createInitialBoard() {
       price: 400,
       rent: 50,
       colorGroup: "darkblue",
+      ownerId: undefined,
     },
   ];
+
+  return board as MonopolyGameState["board"];
 }
 
-function rollDie() {
+function rollDie(): number {
   return Math.floor(Math.random() * 6) + 1;
+}
+
+function countOwnedRailroads(board: MonopolyGameState["board"], ownerId: string): number {
+  return board.filter(
+    (space) => isOwnableSpace(space) && space.type === "railroad" && space.ownerId === ownerId,
+  ).length;
+}
+
+function countOwnedUtilities(board: MonopolyGameState["board"], ownerId: string): number {
+  return board.filter(
+    (space) => isOwnableSpace(space) && space.type === "utility" && space.ownerId === ownerId,
+  ).length;
+}
+
+function calculateRent(
+  board: MonopolyGameState["board"],
+  space: OwnableSpace,
+  diceTotal: number,
+): number {
+  if (!space.ownerId) {
+    return 0;
+  }
+
+  if (space.type === "railroad") {
+    const railroadCount = countOwnedRailroads(board, space.ownerId);
+    if (railroadCount === 1) return 25;
+    if (railroadCount === 2) return 50;
+    if (railroadCount === 3) return 100;
+    return 200;
+  }
+
+  if (space.type === "utility") {
+    const utilityCount = countOwnedUtilities(board, space.ownerId);
+    return diceTotal * (utilityCount >= 2 ? 10 : 4);
+  }
+
+  return space.rent;
+}
+
+function getNextActivePlayerIndex(players: MonopolyPlayer[], currentIndex: number): number {
+  let nextIndex = (currentIndex + 1) % players.length;
+
+  while (players[nextIndex]?.isBankrupt) {
+    nextIndex = (nextIndex + 1) % players.length;
+  }
+
+  return nextIndex;
+}
+
+function bankruptPlayer(
+  players: MonopolyPlayer[],
+  board: MonopolyGameState["board"],
+  playerId: string,
+): {
+  players: MonopolyPlayer[];
+  board: MonopolyGameState["board"];
+} {
+  const updatedPlayers = players.map((player) =>
+    player.userId === playerId
+      ? {
+          ...player,
+          isBankrupt: true,
+          money: 0,
+        }
+      : player,
+  );
+
+  const updatedBoard = board.map((space) => {
+    if (isOwnableSpace(space) && space.ownerId === playerId) {
+      return {
+        ...space,
+        ownerId: undefined,
+      };
+    }
+    return space;
+  }) as MonopolyGameState["board"];
+
+  return { players: updatedPlayers, board: updatedBoard };
+}
+
+function applyLandingEffect(
+  players: MonopolyPlayer[],
+  board: MonopolyGameState["board"],
+  playerIndex: number,
+  diceTotal: number,
+): {
+  players: MonopolyPlayer[];
+  board: MonopolyGameState["board"];
+} {
+  const updatedPlayers = [...players];
+  const currentPlayer = updatedPlayers[playerIndex];
+  const landedSpace = board[currentPlayer.position];
+
+  if (!landedSpace) {
+    return { players: updatedPlayers, board };
+  }
+
+  if (landedSpace.type === "tax") {
+    const taxAmount = landedSpace.spaceId === 38 ? LUXURY_TAX : INCOME_TAX;
+
+    updatedPlayers[playerIndex] = {
+      ...currentPlayer,
+      money: currentPlayer.money - taxAmount,
+    };
+
+    return { players: updatedPlayers, board };
+  }
+
+  if (landedSpace.type === "go_to_jail") {
+    updatedPlayers[playerIndex] = {
+      ...currentPlayer,
+      position: 10,
+    };
+
+    return { players: updatedPlayers, board };
+  }
+
+  if (!isOwnableSpace(landedSpace)) {
+    return { players: updatedPlayers, board };
+  }
+
+  if (!landedSpace.ownerId) {
+    if (currentPlayer.money >= landedSpace.price) {
+      updatedPlayers[playerIndex] = {
+        ...currentPlayer,
+        money: currentPlayer.money - landedSpace.price,
+      };
+
+      const updatedBoard = board.map((space, index) =>
+        index === currentPlayer.position && isOwnableSpace(space)
+          ? {
+              ...space,
+              ownerId: currentPlayer.userId,
+            }
+          : space,
+      ) as MonopolyGameState["board"];
+
+      return { players: updatedPlayers, board: updatedBoard };
+    }
+
+    return { players: updatedPlayers, board };
+  }
+
+  if (landedSpace.ownerId === currentPlayer.userId) {
+    return { players: updatedPlayers, board };
+  }
+
+  const ownerIndex = updatedPlayers.findIndex((player) => player.userId === landedSpace.ownerId);
+
+  if (ownerIndex === -1 || updatedPlayers[ownerIndex]?.isBankrupt) {
+    return { players: updatedPlayers, board };
+  }
+
+  const rent = calculateRent(board, landedSpace, diceTotal);
+
+  updatedPlayers[playerIndex] = {
+    ...updatedPlayers[playerIndex],
+    money: updatedPlayers[playerIndex].money - rent,
+  };
+
+  updatedPlayers[ownerIndex] = {
+    ...updatedPlayers[ownerIndex],
+    money: updatedPlayers[ownerIndex].money + rent,
+  };
+
+  return { players: updatedPlayers, board };
+}
+
+function finalizeBankruptcyAndGameEnd(
+  players: MonopolyPlayer[],
+  board: MonopolyGameState["board"],
+): {
+  players: MonopolyPlayer[];
+  board: MonopolyGameState["board"];
+  phase: MonopolyGameState["phase"];
+  winnerId: MonopolyGameState["winnerId"];
+} {
+  let updatedPlayers = [...players];
+  let updatedBoard = [...board] as MonopolyGameState["board"];
+
+  const newlyBankrupt = updatedPlayers.filter((player) => !player.isBankrupt && player.money < 0);
+
+  for (const player of newlyBankrupt) {
+    const result = bankruptPlayer(updatedPlayers, updatedBoard, player.userId);
+    updatedPlayers = result.players;
+    updatedBoard = result.board;
+  }
+
+  const activePlayers = updatedPlayers.filter((player) => !player.isBankrupt);
+
+  if (activePlayers.length === 1) {
+    return {
+      players: updatedPlayers,
+      board: updatedBoard,
+      phase: "finished",
+      winnerId: activePlayers[0].userId,
+    };
+  }
+
+  return {
+    players: updatedPlayers,
+    board: updatedBoard,
+    phase: "playing",
+    winnerId: undefined,
+  };
 }
 
 export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
@@ -237,28 +529,47 @@ export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
 
   update: (state, payload, playerIndex) => {
     const move = zMonopolyMove.safeParse(payload);
-    if (move.error) return null;
+    if (!move.success) return null;
     if (state.phase !== "playing") return null;
     if (playerIndex !== state.currentPlayerIndex) return null;
+    if (state.players[playerIndex]?.isBankrupt) return null;
 
     const dieOne = rollDie();
     const dieTwo = rollDie();
     const total = dieOne + dieTwo;
 
-    const updatedPlayers = state.players.map((player, index) =>
+    const currentPlayer = state.players[playerIndex];
+    const oldPosition = currentPlayer.position;
+    const newPosition = (oldPosition + total) % BOARD_SIZE;
+    const passedGo = oldPosition + total >= BOARD_SIZE;
+
+    const movedPlayers = state.players.map((player, index) =>
       index === playerIndex
         ? {
             ...player,
-            position: (player.position + total) % BOARD_SIZE,
+            position: newPosition,
+            money: player.money + (passedGo ? GO_MONEY : 0),
           }
         : player,
     );
 
+    const landingResult = applyLandingEffect(movedPlayers, state.board, playerIndex, total);
+
+    const finalized = finalizeBankruptcyAndGameEnd(landingResult.players, landingResult.board);
+
+    const nextPlayerIndex =
+      finalized.phase === "finished"
+        ? state.currentPlayerIndex
+        : getNextActivePlayerIndex(finalized.players, state.currentPlayerIndex);
+
     return {
       ...state,
-      players: updatedPlayers,
-      diceRoll: [dieOne, dieTwo],
-      currentPlayerIndex: (state.currentPlayerIndex + 1) % state.players.length,
+      players: finalized.players,
+      board: finalized.board,
+      diceRoll: [dieOne, dieTwo] as [number, number],
+      currentPlayerIndex: nextPlayerIndex,
+      phase: finalized.phase,
+      winnerId: finalized.winnerId,
     };
   },
 
@@ -272,14 +583,16 @@ export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
     const move = zMonopolyMove.safeParse(payload);
     if (!move.success) return " made a move";
 
+    const actingPlayerIndex =
+      (newState.currentPlayerIndex + newState.players.length - 1) % newState.players.length;
+    const actingPlayer = newState.players[actingPlayerIndex];
+    const landedSpace = newState.board[actingPlayer.position];
     const [dieOne, dieTwo] = newState.diceRoll ?? [0, 0];
     const total = dieOne + dieTwo;
-    const landedSpace =
-      newState.board[
-        newState.players[
-          (newState.currentPlayerIndex + newState.players.length - 1) % newState.players.length
-        ].position
-      ];
+
+    if (newState.phase === "finished" && newState.winnerId) {
+      return ` rolled ${total}, landed on ${landedSpace?.name ?? "a space"}, and ended the game`;
+    }
 
     return ` rolled ${total} and landed on ${landedSpace?.name ?? "a space"}`;
   },
