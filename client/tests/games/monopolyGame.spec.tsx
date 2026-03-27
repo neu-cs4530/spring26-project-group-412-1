@@ -67,7 +67,7 @@ describe("MonopolyGame", () => {
       <MonopolyGame view={makeView()} players={PLAYERS} userPlayerIndex={0} makeMove={vi.fn()} />,
     );
 
-    expect(screen.getByText("Rolled 2 + 3")).not.toBeNull();
+    expect(screen.getByText("Rolled 5")).not.toBeNull();
     expect(screen.getByText("Landed on Income Tax")).not.toBeNull();
     expect(screen.getByText("Paid $200 in tax")).not.toBeNull();
   });

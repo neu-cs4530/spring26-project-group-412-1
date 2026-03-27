@@ -323,7 +323,7 @@ describe("Monopoly move descriptions", () => {
     const resolved = resolveMonopolyTurn(state, 0, [1, 1]);
     expect(resolved).not.toBeNull();
     expect(monopolyLogic.describeMove(state, resolved!, { type: "roll" }, 0)).toBe(
-      " rolled 1 + 1, moved to Income Tax, landed on Income Tax, paid $200 in tax",
+      " rolled 2, moved to Income Tax, landed on Income Tax, paid $200 in tax",
     );
   });
 
