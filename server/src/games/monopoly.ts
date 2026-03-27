@@ -93,6 +93,9 @@ const COMMUNITY_CHEST_DECK: MonopolyCard[] = [
   },
 ];
 
+/**
+ * Initial board setup with all 40 Monopoly spaces.
+ */
 function createInitialBoard(): BoardSpace[] {
   return [
     { spaceId: 0, name: "Go", type: "go" },
@@ -304,9 +307,7 @@ function cloneState(state: MonopolyGameState): MonopolyGameState {
 
 function getBoardSpace(board: BoardSpace[], spaceId: number): BoardSpace {
   const space = board.find((candidate) => candidate.spaceId === spaceId);
-  if (!space) {
-    throw new Error(`Monopoly space ${spaceId} is not defined`);
-  }
+  if (!space) throw new Error(`Monopoly space ${spaceId} is not defined`);
   return space;
 }
 
@@ -331,10 +332,7 @@ function nextPlayerIndex(state: MonopolyGameState): number {
     .map((player, index) => ({ player, index }))
     .filter(({ player }) => !player.isBankrupt)
     .map(({ index }) => index);
-
-  if (livePlayers.length <= 1) {
-    return state.currentPlayerIndex;
-  }
+  if (livePlayers.length <= 1) return state.currentPlayerIndex;
 
   for (let offset = 1; offset <= state.players.length; offset += 1) {
     const candidate = (state.currentPlayerIndex + offset) % state.players.length;
@@ -414,7 +412,6 @@ export function sendPlayerToJail(
   const from = player.position;
   player.position = JAIL_SPACE_ID;
   player.inJail = true;
-
   pushEvent(events, {
     type: "sent_to_jail",
     from,
@@ -431,7 +428,6 @@ function drawNextCard(
   const cards = getDeck(deck);
   const cursor = nextDeckCursor(state, deck);
   const card = cards[cursor % cards.length];
-
   setDeckCursor(state, deck, cursor + 1);
   pushEvent(events, {
     type: "drew_card",
@@ -439,7 +435,6 @@ function drawNextCard(
     cardId: card.id,
     cardText: card.text,
   });
-
   return card;
 }
 
@@ -455,7 +450,6 @@ function findNearestSpace(
       return candidate.spaceId;
     }
   }
-
   return startSpaceId;
 }
 
@@ -465,13 +459,10 @@ function resolveLandingSpace(
   events: MonopolyTurnEvent[],
   depth = 0,
 ): void {
-  if (depth > BOARD_SIZE) {
-    return;
-  }
+  if (depth > BOARD_SIZE) return;
 
   const player = state.players[playerIndex];
   const space = getBoardSpace(state.board, player.position);
-
   pushEvent(events, {
     type: "landed",
     spaceId: space.spaceId,
@@ -489,11 +480,9 @@ function resolveLandingSpace(
         spaceName: space.name,
       });
       return;
-
     case "go_to_jail":
       sendPlayerToJail(state, playerIndex, events);
       return;
-
     case "chance":
     case "community_chest": {
       const deck = space.type;
@@ -501,7 +490,6 @@ function resolveLandingSpace(
       applyCardEffect(state, playerIndex, card.effect, deck, events, depth + 1);
       return;
     }
-
     default:
       return;
   }
@@ -520,12 +508,10 @@ export function applyCardEffect(
       movePlayerTo(state, playerIndex, effect.spaceId, events, deck);
       resolveLandingSpace(state, playerIndex, events, depth);
       return;
-
     case "move_by":
       movePlayerBy(state, playerIndex, effect.spaces, events);
       resolveLandingSpace(state, playerIndex, events, depth);
       return;
-
     case "move_to_nearest": {
       const destination = findNearestSpace(
         state.board,
@@ -536,7 +522,6 @@ export function applyCardEffect(
       resolveLandingSpace(state, playerIndex, events, depth);
       return;
     }
-
     case "go_to_jail":
       sendPlayerToJail(state, playerIndex, events);
       return;
@@ -548,15 +533,9 @@ export function resolveMonopolyTurn(
   playerIndex: number,
   diceRoll: [number, number],
 ): MonopolyGameState | null {
-  if (state.phase !== "playing") {
-    return null;
-  }
-  if (playerIndex !== state.currentPlayerIndex) {
-    return null;
-  }
-  if (state.players[playerIndex]?.isBankrupt) {
-    return null;
-  }
+  if (state.phase !== "playing") return null;
+  if (playerIndex !== state.currentPlayerIndex) return null;
+  if (state.players[playerIndex]?.isBankrupt) return null;
 
   const nextState = cloneState(state);
   nextState.diceRoll = diceRoll;
@@ -579,9 +558,7 @@ function deckLabel(deck: MonopolyDeckKind): string {
 }
 
 function describeTurn(events: MonopolyTurnEvent[]): string {
-  if (events.length === 0) {
-    return " rolled";
-  }
+  if (events.length === 0) return " rolled";
 
   const parts: string[] = [];
   for (const event of events) {
@@ -639,9 +616,7 @@ export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
 
   update: (state, payload, playerIndex) => {
     const move = zMonopolyMove.safeParse(payload);
-    if (!move.success) {
-      return null;
-    }
+    if (!move.success) return null;
 
     switch (move.data.type) {
       case "roll":
@@ -657,9 +632,7 @@ export const monopolyLogic: GameLogic<MonopolyGameState, MonopolyGameState> = {
 
   describeMove: (_prevState, newState, move) => {
     const parsedMove = zMonopolyMove.safeParse(move);
-    if (!parsedMove.success) {
-      return " made an invalid Monopoly move";
-    }
+    if (!parsedMove.success) return " made an invalid Monopoly move";
     return describeTurn(newState.lastTurnEvents);
   },
 };
