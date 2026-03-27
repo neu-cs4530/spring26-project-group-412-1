@@ -350,7 +350,7 @@ describe("Monopoly move descriptions", () => {
     const failedRoll = resolveMonopolyTurn(state, 0, [1, 2]);
     expect(failedRoll).not.toBeNull();
     expect(monopolyLogic.describeMove(state, failedRoll!, { type: "roll" }, 0)).toBe(
-      " rolled 1 + 2, stayed in Jail (2 turns remaining)",
+      " rolled 3, stayed in Jail (2 turns remaining)",
     );
 
     const bailedState = makeState();
