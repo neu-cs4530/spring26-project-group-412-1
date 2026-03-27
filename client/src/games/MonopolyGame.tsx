@@ -6,11 +6,7 @@ import type {
   OwnableSpace,
 } from "@gamenite/shared";
 import MonopolyBoard from "./MonopolyBoard";
-<<<<<<< us2--monopoly-turn-system-and-smaller-special-cards
 import type { GameProps } from "../util/types.ts";
-=======
-import { Dices } from "lucide-react";
->>>>>>> main
 
 function describeEvent(event: MonopolyTurnEvent): string {
   switch (event.type) {
@@ -38,11 +34,7 @@ export default function MonopolyGame({
   players,
   userPlayerIndex,
   makeMove,
-<<<<<<< us2--monopoly-turn-system-and-smaller-special-cards
 }: GameProps<MonopolyGameState, MonopolyMove>) {
-=======
-}: MonopolyGameProps) {
->>>>>>> main
   const [showDeck, setShowDeck] = useState(false);
 
   const ownableSpaces = view.board.filter(
@@ -104,23 +96,6 @@ export default function MonopolyGame({
               <li key={summary}>{summary}</li>
             ))}
           </ul>
-        </div>
-      )}
-
-      {isMyTurn && (
-        <div>
-          <button className="primary narrow" onClick={() => makeMove({ type: "ROLL_DICE" })}>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-              }}
-            >
-              <Dices size={16} strokeWidth={2.25} />
-              Roll Dice
-            </span>
-          </button>
         </div>
       )}
 

@@ -24,8 +24,6 @@ interface MonopolyBoardProps {
   diceRoll?: [number, number];
 }
 
-function getOwnerLabel(space: BoardSpace, userInfos: SafeUserInfo[]) {
-  if (!("ownerIndex" in space) || space.ownerIndex === undefined) {
 const PLAYER_PIECES: LucideIcon[] = [Car, Ship, ChessKnight, Dices];
 
 type BoardSpaceWithBuildings = BoardSpace & {
@@ -33,8 +31,8 @@ type BoardSpaceWithBuildings = BoardSpace & {
   hotelCount?: number;
 };
 
-function getOwnerLabel(space: BoardSpace, players: MonopolyPlayer[], userInfos: SafeUserInfo[]) {
-  if (!("ownerId" in space) || !space.ownerId) {
+function getOwnerLabel(space: BoardSpace, userInfos: SafeUserInfo[]) {
+  if (!("ownerIndex" in space) || space.ownerIndex === undefined) {
     return undefined;
   }
 
