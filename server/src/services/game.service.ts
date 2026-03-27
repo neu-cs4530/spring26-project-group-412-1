@@ -7,6 +7,7 @@ import { guessGameService } from "../games/guess.ts";
 import { type GameViewUpdates, type UserWithId } from "../types.ts";
 import { GameRepo } from "../repository.ts";
 import { monopolyGameService } from "../games/monopoly.ts";
+import { gameLockKey, withKeyedLock } from "./lock.service.ts";
 
 /**
  * The service interface for individual games
@@ -85,22 +86,24 @@ export async function getGameById(gameId: string): Promise<GameInfo | null> {
  * players
  */
 export async function joinGame(gameId: string, user: UserWithId): Promise<GameInfo> {
-  const game = await GameRepo.find(gameId);
-  if (!game) throw new Error(`user ${user.username} joining invalid game`);
-  if (game.state) {
-    throw new Error(`user ${user.username} joining game that started`);
-  }
-  if (game.players.some((userId) => userId === user.userId)) {
-    throw new Error(`user ${user.username} joining game they are in already`);
-  }
-  if (game.players.length === gameServices[game.type].maxPlayers) {
-    throw new Error(`user ${user.username} joining full`);
-  }
+  return withKeyedLock(gameLockKey(gameId), async () => {
+    const game = await GameRepo.find(gameId);
+    if (!game) throw new Error(`user ${user.username} joining invalid game`);
+    if (game.state) {
+      throw new Error(`user ${user.username} joining game that started`);
+    }
+    if (game.players.some((userId) => userId === user.userId)) {
+      throw new Error(`user ${user.username} joining game they are in already`);
+    }
+    if (game.players.length === gameServices[game.type].maxPlayers) {
+      throw new Error(`user ${user.username} joining full`);
+    }
 
-  game.players = [...game.players, user.userId];
-  await GameRepo.set(gameId, game);
+    game.players = [...game.players, user.userId];
+    await GameRepo.set(gameId, game);
 
-  return populateGameInfo(gameId);
+    return populateGameInfo(gameId);
+  });
 }
 
 /**
@@ -113,26 +116,28 @@ export async function joinGame(gameId: string, user: UserWithId): Promise<GameIn
  * players to start
  */
 export async function startGame(gameId: string, user: UserWithId): Promise<GameViewUpdates> {
-  const game = await GameRepo.find(gameId);
-  if (!game) throw new Error(`user ${user.username} starting invalid game`);
-  if (game.state) {
-    throw new Error(`user ${user.username} starting game that started`);
-  }
+  return withKeyedLock(gameLockKey(gameId), async () => {
+    const game = await GameRepo.find(gameId);
+    if (!game) throw new Error(`user ${user.username} starting invalid game`);
+    if (game.state) {
+      throw new Error(`user ${user.username} starting game that started`);
+    }
 
-  const key: GameKey = game.type;
+    const key: GameKey = game.type;
 
-  if (game.players.length < gameServices[key].minPlayers) {
-    throw new Error(`user ${user.username} starting underpopulated game`);
-  }
-  if (!game.players.some((userId) => userId === user.userId)) {
-    throw new Error(`user ${user.username} starting game they're not in`);
-  }
-  const { state, views } = gameServices[key].create(game.players);
+    if (game.players.length < gameServices[key].minPlayers) {
+      throw new Error(`user ${user.username} starting underpopulated game`);
+    }
+    if (!game.players.some((userId) => userId === user.userId)) {
+      throw new Error(`user ${user.username} starting game they're not in`);
+    }
+    const { state, views } = gameServices[key].create(game.players);
 
-  game.state = state;
-  await GameRepo.set(gameId, game);
+    game.state = state;
+    await GameRepo.set(gameId, game);
 
-  return Promise.resolve(views);
+    return Promise.resolve(views);
+  });
 }
 
 /**

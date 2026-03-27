@@ -11,6 +11,7 @@ import { type UserWithId } from "../types.ts";
 import { getUserByUsername } from "./auth.service.ts";
 import { gameServices, joinGame } from "./game.service.ts";
 import { inviteeIndexKey, inviterIndexKey, pendingInviteIndexKey } from "./invite.index.service.ts";
+import { gameLockKey, inviteLockKey, withKeyedLock } from "./lock.service.ts";
 
 const INVITE_TTL_MS = 5 * 60 * 1000;
 
@@ -73,7 +74,7 @@ async function appendInviteIdToListIndex(
 /**
  * Lazily transitions a pending invite to expired if now > expiresAt.
  */
-async function lazilyExpireInvite(inviteId: string, now: Date): Promise<InviteRecord> {
+async function lazilyExpireInviteUnlocked(inviteId: string, now: Date): Promise<InviteRecord> {
   const invite = await getInviteRecord(inviteId);
   if (invite.status !== "pending") return invite;
   if (new Date(invite.expiresAt).getTime() >= now.getTime()) return invite;
@@ -90,6 +91,10 @@ async function lazilyExpireInvite(inviteId: string, now: Date): Promise<InviteRe
   return expired;
 }
 
+async function lazilyExpireInvite(inviteId: string, now: Date): Promise<InviteRecord> {
+  return withKeyedLock(inviteLockKey(inviteId), () => lazilyExpireInviteUnlocked(inviteId, now));
+}
+
 /**
  * Create a new invite with all Sprint 1 validations and duplicate-pending
  * prevention.
@@ -100,56 +105,58 @@ export async function createInvite(
   inviteeUsername: string,
   now: Date,
 ): Promise<InviteInfo> {
-  const roomRecord = await GameRepo.find(roomId);
-  if (!roomRecord) throw new Error("Room not found");
-  const room = roomRecord;
-  if (room.state) throw new Error("Cannot invite to an active game");
-  if (room.createdBy !== inviter.userId) throw new Error("Only the room host can send invites");
-  const maxPlayers = gameServices[room.type].maxPlayers;
-  if (maxPlayers !== null && room.players.length >= maxPlayers) throw new Error("Room is full");
+  return withKeyedLock(gameLockKey(roomId), async () => {
+    const roomRecord = await GameRepo.find(roomId);
+    if (!roomRecord) throw new Error("Room not found");
+    const room = roomRecord;
+    if (room.state) throw new Error("Cannot invite to an active game");
+    if (room.createdBy !== inviter.userId) throw new Error("Only the room host can send invites");
+    const maxPlayers = gameServices[room.type].maxPlayers;
+    if (maxPlayers !== null && room.players.length >= maxPlayers) throw new Error("Room is full");
 
-  const invitee = await getUserByUsername(inviteeUsername);
-  if (!invitee) throw new Error("Invitee not found");
-  if (room.players.some((playerId) => playerId === invitee.userId)) {
-    throw new Error("Invitee is already in the room");
-  }
-
-  const pendingKey = pendingInviteIndexKey(roomId, invitee.userId);
-  const existingPending = await InvitePendingByRoomInviteeRepo.find(pendingKey);
-  if (existingPending) {
-    const existingInvite = await InviteRepo.find(existingPending.inviteId);
-    if (existingInvite) {
-      const existingResolved = await lazilyExpireInvite(existingPending.inviteId, now);
-      if (existingResolved.status === "pending") {
-        throw new Error("Duplicate pending invite for this room and invitee");
-      }
-    } else {
-      await InvitePendingByRoomInviteeRepo.remove(pendingKey);
+    const invitee = await getUserByUsername(inviteeUsername);
+    if (!invitee) throw new Error("Invitee not found");
+    if (room.players.some((playerId) => playerId === invitee.userId)) {
+      throw new Error("Invitee is already in the room");
     }
-  }
 
-  const createdAtIso = now.toISOString();
-  const expiresAtIso = new Date(now.getTime() + INVITE_TTL_MS).toISOString();
-  const inviteId = await InviteRepo.add({
-    roomId,
-    gameType: "monopoly",
-    inviterId: inviter.userId,
-    inviteeId: invitee.userId,
-    status: "pending",
-    createdAt: createdAtIso,
-    updatedAt: createdAtIso,
-    expiresAt: expiresAtIso,
+    const pendingKey = pendingInviteIndexKey(roomId, invitee.userId);
+    const existingPending = await InvitePendingByRoomInviteeRepo.find(pendingKey);
+    if (existingPending) {
+      const existingInvite = await InviteRepo.find(existingPending.inviteId);
+      if (existingInvite) {
+        const existingResolved = await lazilyExpireInviteUnlocked(existingPending.inviteId, now);
+        if (existingResolved.status === "pending") {
+          throw new Error("Duplicate pending invite for this room and invitee");
+        }
+      } else {
+        await InvitePendingByRoomInviteeRepo.remove(pendingKey);
+      }
+    }
+
+    const createdAtIso = now.toISOString();
+    const expiresAtIso = new Date(now.getTime() + INVITE_TTL_MS).toISOString();
+    const inviteId = await InviteRepo.add({
+      roomId,
+      gameType: "monopoly",
+      inviterId: inviter.userId,
+      inviteeId: invitee.userId,
+      status: "pending",
+      createdAt: createdAtIso,
+      updatedAt: createdAtIso,
+      expiresAt: expiresAtIso,
+    });
+
+    await InvitePendingByRoomInviteeRepo.set(pendingKey, {
+      inviteId,
+      createdAt: createdAtIso,
+      expiresAt: expiresAtIso,
+    });
+    await appendInviteIdToListIndex(inviteeIndexKey(invitee.userId), inviteId, "invitee");
+    await appendInviteIdToListIndex(inviterIndexKey(inviter.userId), inviteId, "inviter");
+
+    return populateInviteInfo(inviteId);
   });
-
-  await InvitePendingByRoomInviteeRepo.set(pendingKey, {
-    inviteId,
-    createdAt: createdAtIso,
-    expiresAt: expiresAtIso,
-  });
-  await appendInviteIdToListIndex(inviteeIndexKey(invitee.userId), inviteId, "invitee");
-  await appendInviteIdToListIndex(inviterIndexKey(inviter.userId), inviteId, "inviter");
-
-  return populateInviteInfo(inviteId);
 }
 
 /**
@@ -231,34 +238,38 @@ export async function acceptInvite(
   invitee: UserWithId,
   now: Date,
 ): Promise<InviteInfo> {
-  const invite = await lazilyExpireInvite(inviteId, now);
-  if (invite.inviteeId !== invitee.userId) throw new Error("Not authorized to accept this invite");
-  if (invite.status !== "pending") throw new Error(`Invite is ${invite.status}`);
-
-  try {
-    await joinGame(invite.roomId, invitee);
-  } catch (err) {
-    if (err instanceof Error) {
-      if (
-        err.message.includes("invalid game") ||
-        err.message.includes("joining full") ||
-        err.message.includes("joining game that started")
-      ) {
-        await updateInviteStatus(inviteId, (current) => ({
-          ...current,
-          status: "expired",
-          updatedAt: now.toISOString(),
-        }));
-      }
+  return withKeyedLock(inviteLockKey(inviteId), async () => {
+    const invite = await lazilyExpireInviteUnlocked(inviteId, now);
+    if (invite.inviteeId !== invitee.userId) {
+      throw new Error("Not authorized to accept this invite");
     }
-    throw err;
-  }
-  return updateInviteStatus(inviteId, (current) => ({
-    ...current,
-    status: "accepted",
-    updatedAt: now.toISOString(),
-    respondedAt: now.toISOString(),
-  }));
+    if (invite.status !== "pending") throw new Error(`Invite is ${invite.status}`);
+
+    try {
+      await joinGame(invite.roomId, invitee);
+    } catch (err) {
+      if (err instanceof Error) {
+        if (
+          err.message.includes("invalid game") ||
+          err.message.includes("joining full") ||
+          err.message.includes("joining game that started")
+        ) {
+          await updateInviteStatus(inviteId, (current) => ({
+            ...current,
+            status: "expired",
+            updatedAt: now.toISOString(),
+          }));
+        }
+      }
+      throw err;
+    }
+    return updateInviteStatus(inviteId, (current) => ({
+      ...current,
+      status: "accepted",
+      updatedAt: now.toISOString(),
+      respondedAt: now.toISOString(),
+    }));
+  });
 }
 
 /**
@@ -269,16 +280,20 @@ export async function declineInvite(
   invitee: UserWithId,
   now: Date,
 ): Promise<InviteInfo> {
-  const invite = await lazilyExpireInvite(inviteId, now);
-  if (invite.inviteeId !== invitee.userId) throw new Error("Not authorized to decline this invite");
-  if (invite.status !== "pending") throw new Error(`Invite is ${invite.status}`);
+  return withKeyedLock(inviteLockKey(inviteId), async () => {
+    const invite = await lazilyExpireInviteUnlocked(inviteId, now);
+    if (invite.inviteeId !== invitee.userId) {
+      throw new Error("Not authorized to decline this invite");
+    }
+    if (invite.status !== "pending") throw new Error(`Invite is ${invite.status}`);
 
-  return updateInviteStatus(inviteId, (current) => ({
-    ...current,
-    status: "declined",
-    updatedAt: now.toISOString(),
-    respondedAt: now.toISOString(),
-  }));
+    return updateInviteStatus(inviteId, (current) => ({
+      ...current,
+      status: "declined",
+      updatedAt: now.toISOString(),
+      respondedAt: now.toISOString(),
+    }));
+  });
 }
 
 /**
@@ -289,14 +304,18 @@ export async function cancelInvite(
   inviter: UserWithId,
   now: Date,
 ): Promise<InviteInfo> {
-  const invite = await lazilyExpireInvite(inviteId, now);
-  if (invite.inviterId !== inviter.userId) throw new Error("Not authorized to cancel this invite");
-  if (invite.status !== "pending") throw new Error(`Invite is ${invite.status}`);
+  return withKeyedLock(inviteLockKey(inviteId), async () => {
+    const invite = await lazilyExpireInviteUnlocked(inviteId, now);
+    if (invite.inviterId !== inviter.userId) {
+      throw new Error("Not authorized to cancel this invite");
+    }
+    if (invite.status !== "pending") throw new Error(`Invite is ${invite.status}`);
 
-  return updateInviteStatus(inviteId, (current) => ({
-    ...current,
-    status: "canceled",
-    updatedAt: now.toISOString(),
-    canceledAt: now.toISOString(),
-  }));
+    return updateInviteStatus(inviteId, (current) => ({
+      ...current,
+      status: "canceled",
+      updatedAt: now.toISOString(),
+      canceledAt: now.toISOString(),
+    }));
+  });
 }
