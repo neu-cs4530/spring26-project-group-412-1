@@ -1,9 +1,9 @@
-import { withAuth, zNewMessageRequest } from "@gamenite/shared";
+import { withAuth, zNewMessageRequest, zToggleMessageReactionRequest } from "@gamenite/shared";
 import { type SocketAPI } from "../types.ts";
 import { z } from "zod";
-import { addMessageToChat, forceChatById } from "../services/chat.service.ts";
+import { addMessageToChat, addReactionLogToChat, forceChatById } from "../services/chat.service.ts";
 import { populateSafeUserInfo } from "../services/user.service.ts";
-import { createMessage } from "../services/message.service.ts";
+import { createMessage, toggleMessageReaction } from "../services/message.service.ts";
 import { logSocketError } from "./socket.controller.ts";
 import { enforceAuth } from "../services/auth.service.ts";
 
@@ -69,6 +69,36 @@ export const socketSendMessage: SocketAPI = (socket, io) => async (body) => {
 
     // Send the message to everyone, including the sender
     io.to(chatId).emit("chatNewMessage", { chatId, message });
+  } catch (err) {
+    logSocketError(socket, err);
+  }
+};
+
+/**
+ * Handle a socket request to add, change, or remove a reaction on a message.
+ */
+export const socketToggleReaction: SocketAPI = (socket, io) => async (body) => {
+  try {
+    const {
+      auth,
+      payload: { chatId, messageId, emoji },
+    } = withAuth(zToggleMessageReactionRequest).parse(body);
+    const user = await enforceAuth(auth);
+    const now = new Date();
+    const result = await toggleMessageReaction(user, messageId, emoji);
+
+    if (result.action === "added") {
+      await addReactionLogToChat(chatId, messageId, emoji, user, now);
+    }
+
+    io.to(chatId).emit("chatReactionUpdated", {
+      chatId,
+      message: result.message,
+      user: await populateSafeUserInfo(user.userId),
+      emoji,
+      action: result.action,
+      createdAt: now,
+    });
   } catch (err) {
     logSocketError(socket, err);
   }

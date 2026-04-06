@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GameServer, GameServerSocket } from "../src/types.ts";
 import { logSocketError } from "../src/controllers/socket.controller.ts";
-import { socketJoin } from "../src/controllers/chat.controller.ts";
-import { createChat } from "../src/services/chat.service.ts";
+import { socketJoin, socketToggleReaction } from "../src/controllers/chat.controller.ts";
+import { addMessageToChat, createChat } from "../src/services/chat.service.ts";
 import { populateSafeUserInfo } from "../src/services/user.service.ts";
-import { getUserByUsername } from "../src/services/auth.service.ts";
+import { enforceAuth, getUserByUsername } from "../src/services/auth.service.ts";
+import { createMessage } from "../src/services/message.service.ts";
 
 // Mock the logSocketError function so we can test error conditions in sockets
 vi.mock(import("../src/controllers/socket.controller.ts"), () => {
@@ -78,5 +79,41 @@ describe("socketJoin", () => {
       chatId: chat.chatId,
       user,
     });
+  });
+});
+
+describe("socketToggleReaction", () => {
+  it("updates the message and emits a reaction update payload", async () => {
+    const user = await enforceAuth(auth);
+    const chat = await createChat(new Date());
+    const message = await createMessage(user, "react here", new Date("2026-01-01T00:00:00.000Z"));
+    await addMessageToChat(chat.chatId, user, message.messageId);
+    const safeUser = await populateSafeUserInfo(user.userId);
+
+    await socketToggleReaction(mockSocket, mockServer)({
+      auth,
+      payload: { chatId: chat.chatId, messageId: message.messageId, emoji: "👍" },
+    });
+
+    expect(logSocketError).not.toHaveBeenCalled();
+    expect(mockServer.to).toHaveBeenCalledWith(chat.chatId);
+    expect(mockServer.emit).toHaveBeenCalledWith(
+      "chatReactionUpdated",
+      expect.objectContaining({
+        chatId: chat.chatId,
+        user: safeUser,
+        emoji: "👍",
+        action: "added",
+        message: expect.objectContaining({
+          messageId: message.messageId,
+          reactions: [
+            {
+              emoji: "👍",
+              reactedBy: [expect.objectContaining({ username: "user1" })],
+            },
+          ],
+        }),
+      }),
+    );
   });
 });

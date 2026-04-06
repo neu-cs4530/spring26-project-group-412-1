@@ -34,6 +34,33 @@ describe("Monopoly start() logic", () => {
       { money: 1500, position: 0, isBankrupt: false, inJail: false, jailTurns: 0 },
     ]);
   });
+
+  it("fills property cards with detailed rent and mortgage metadata", () => {
+    const state = monopolyLogic.start(2);
+    const mediterranean = state.board.find(
+      (space) => space.type === "property" && space.spaceId === 1,
+    );
+    const readingRailroad = state.board.find(
+      (space) => space.type === "railroad" && space.spaceId === 5,
+    );
+    const electricCompany = state.board.find(
+      (space) => space.type === "utility" && space.spaceId === 12,
+    );
+
+    expect(mediterranean).toMatchObject({
+      mortgageValue: 30,
+      houseCost: 50,
+      rentSchedule: [2, 10, 30, 90, 160, 250],
+    });
+    expect(readingRailroad).toMatchObject({
+      mortgageValue: 100,
+      railroadRentSchedule: [25, 50, 100, 200],
+    });
+    expect(electricCompany).toMatchObject({
+      mortgageValue: 75,
+      utilityMultiplierSchedule: [4, 10],
+    });
+  });
 });
 
 describe("Monopoly update() logic", () => {

@@ -19,14 +19,39 @@ export type BoardSpaceType =
  * A space on the board that can be purchased and owned by a player.
  * Includes properties, railroads, and utilities.
  */
-export interface OwnableSpace {
+export interface PropertySpace {
   spaceId: number;
   name: string;
-  type: "property" | "railroad" | "utility";
+  type: "property";
   price: number;
   rent: number;
   ownerIndex?: number;
-  colorGroup?: string;
+  colorGroup: string;
+  mortgageValue?: number;
+  houseCost?: number;
+  rentSchedule?: [number, number, number, number, number, number];
+}
+
+export interface RailroadSpace {
+  spaceId: number;
+  name: string;
+  type: "railroad";
+  price: number;
+  rent: number;
+  ownerIndex?: number;
+  mortgageValue?: number;
+  railroadRentSchedule?: [number, number, number, number];
+}
+
+export interface UtilitySpace {
+  spaceId: number;
+  name: string;
+  type: "utility";
+  price: number;
+  rent: number;
+  ownerIndex?: number;
+  mortgageValue?: number;
+  utilityMultiplierSchedule?: [number, number];
 }
 
 /**
@@ -51,6 +76,7 @@ export interface SpecialSpace {
 /**
  * A space on the board is either ownable or special.
  */
+export type OwnableSpace = PropertySpace | RailroadSpace | UtilitySpace;
 export type BoardSpace = OwnableSpace | TaxSpace | SpecialSpace;
 
 /**

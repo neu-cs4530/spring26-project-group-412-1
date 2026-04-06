@@ -1,4 +1,5 @@
 import type { GameKey } from "@gamenite/shared";
+import type { ReactionEmoji } from "@gamenite/shared";
 
 /**
  * Record identifiers used to look up keys in a database. This type
@@ -33,6 +34,7 @@ export interface AuthRecord {
 export interface ChatRecord {
   messages: RecordId[]; // References Message models
   moveLog: MoveLogEntry[];
+  reactionLog: ReactionLogEntry[];
   createdAt: DateISO;
 }
 
@@ -45,6 +47,13 @@ export interface ChatRecord {
 export interface MoveLogEntry {
   moveDescription: string;
   userId: RecordId;
+  createdAt: DateISO;
+}
+
+export interface ReactionLogEntry {
+  messageId: RecordId; // References Message models
+  emoji: ReactionEmoji;
+  userId: RecordId; // References User models
   createdAt: DateISO;
 }
 
@@ -91,6 +100,10 @@ export interface MessageRecord {
   text: string;
   createdBy: RecordId; // References User records
   createdAt: DateISO;
+  reactions?: {
+    emoji: ReactionEmoji;
+    userIds: RecordId[];
+  }[];
 }
 
 /**

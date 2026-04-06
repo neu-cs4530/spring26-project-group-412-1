@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   MonopolyGameState,
   MonopolyMove,
@@ -7,6 +7,7 @@ import type {
 } from "@gamenite/shared";
 import MonopolyBoard from "./MonopolyBoard";
 import type { GameProps } from "../util/types.ts";
+import MonopolyPropertyCard from "./MonopolyPropertyCard.tsx";
 
 function describeEvent(event: MonopolyTurnEvent): string {
   switch (event.type) {
@@ -56,6 +57,9 @@ export default function MonopolyGame({
     (space): space is OwnableSpace =>
       space.type === "property" || space.type === "railroad" || space.type === "utility",
   );
+  const [selectedSpaceId, setSelectedSpaceId] = useState<number | null>(
+    ownableSpaces[0]?.spaceId ?? null,
+  );
 
   const isMyTurn = view.currentPlayerIndex === userPlayerIndex;
   const currentUserPlayer = userPlayerIndex >= 0 ? view.players[userPlayerIndex] : undefined;
@@ -65,6 +69,13 @@ export default function MonopolyGame({
     () => view.lastTurnEvents.map(describeEvent),
     [view.lastTurnEvents],
   );
+  const selectedSpace = ownableSpaces.find((space) => space.spaceId === selectedSpaceId) ?? ownableSpaces[0];
+
+  useEffect(() => {
+    if (!selectedSpace && ownableSpaces[0]) {
+      setSelectedSpaceId(ownableSpaces[0].spaceId);
+    }
+  }, [ownableSpaces, selectedSpace]);
 
   return (
     <div className="content spacedSection">
@@ -134,7 +145,15 @@ export default function MonopolyGame({
         userInfos={players}
         currentPlayerIndex={view.currentPlayerIndex}
         diceRoll={view.diceRoll}
+        selectedSpaceId={selectedSpace?.spaceId}
+        onSelectSpace={(spaceId) => setSelectedSpaceId(spaceId)}
       />
+      {selectedSpace && (
+        <div className="spacedSection">
+          <h3>Selected Property</h3>
+          <MonopolyPropertyCard space={selectedSpace} />
+        </div>
+      )}
       <div>
         <button className="secondary narrow" onClick={() => setShowDeck((prev) => !prev)}>
           {showDeck ? "Hide Deck" : "Show Deck"}
@@ -143,14 +162,39 @@ export default function MonopolyGame({
       {showDeck && (
         <div className="spacedSection">
           <h3>Property Deck</h3>
-          <div className="dottedList">
+          <div
+            style={{
+              display: "grid",
+              gap: "0.75rem",
+              gridTemplateColumns: "repeat(auto-fit, minmax(14rem, 1fr))",
+            }}
+          >
             {ownableSpaces.map((space) => (
-              <div className="dottedListItem" key={space.spaceId}>
-                <strong>{space.name}</strong> - ${space.price} (Rent: ${space.rent})
-                {space.ownerIndex !== undefined
-                  ? ` - Owned by ${players[space.ownerIndex]?.display ?? `P${space.ownerIndex + 1}`}`
-                  : " - Available"}
-              </div>
+              <button
+                key={space.spaceId}
+                type="button"
+                onClick={() => setSelectedSpaceId(space.spaceId)}
+                style={{
+                  textAlign: "left",
+                  border:
+                    selectedSpace?.spaceId === space.spaceId
+                      ? "2px solid oklch(0.58 0.18 255)"
+                      : "1px solid oklch(0.82 0 0)",
+                  borderRadius: "0.9rem",
+                  backgroundColor: "white",
+                  padding: "0.8rem",
+                  display: "grid",
+                  gap: "0.35rem",
+                }}
+              >
+                <strong>{space.name}</strong>
+                <span>${space.price}</span>
+                <span>
+                  {space.ownerIndex !== undefined
+                    ? `Owned by ${players[space.ownerIndex]?.display ?? `P${space.ownerIndex + 1}`}`
+                    : "Available"}
+                </span>
+              </button>
             ))}
           </div>
         </div>

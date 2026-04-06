@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useLoginContext from "./useLoginContext.ts";
 import type {
   ChatInfo,
   ChatMoveLogPayload,
   ChatNewMessagePayload,
+  ChatReactionUpdatedPayload,
   ChatUserJoinedPayload,
 } from "@gamenite/shared";
-import type { ChatMessage } from "../util/types.ts";
+import type { ActiveReactionBurst, ChatMessage } from "../util/types.ts";
 import useAuth from "./useAuth.ts";
+
+const REACTION_BURST_LIFETIME_MS = 3_000;
 
 /** Extract the timestamp from any ChatMessage variant */
 function messageTime(msg: ChatMessage): number {
@@ -51,6 +54,8 @@ export default function useSocketsForChat(chatId: string) {
   const auth = useAuth();
   const { user, socket } = useLoginContext();
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
+  const [activeReactionBursts, setActiveReactionBursts] = useState<ActiveReactionBurst[]>([]);
+  const reactionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
     const handleChatJoined = (chat: ChatInfo) => {
@@ -67,8 +72,15 @@ export default function useSocketsForChat(chatId: string) {
         user: entry.user,
         dateTime: new Date(entry.createdAt),
       }));
+      const reactionLogMessages: ChatMessage[] = chat.reactionLog.map((entry, index) => ({
+        messageId: `reaction-init-${index}`,
+        meta: "reaction" as const,
+        emoji: entry.emoji,
+        user: entry.user,
+        dateTime: new Date(entry.createdAt),
+      }));
 
-      const allMessages = mergeByTime(chatMessages, moveLogMessages);
+      const allMessages = mergeByTime(mergeByTime(chatMessages, moveLogMessages), reactionLogMessages);
 
       setMessages([
         ...allMessages,
@@ -77,6 +89,7 @@ export default function useSocketsForChat(chatId: string) {
       socket.on("chatNewMessage", handleNewMessage);
       socket.on("chatUserJoined", handleUserJoined);
       socket.on("chatMoveLog", handleMoveLog);
+      socket.on("chatReactionUpdated", handleReactionUpdated);
     };
 
     const handleNewMessage = (payload: ChatNewMessagePayload) => {
@@ -122,6 +135,48 @@ export default function useSocketsForChat(chatId: string) {
       }
     };
 
+    const handleReactionUpdated = (payload: ChatReactionUpdatedPayload) => {
+      if (payload.chatId !== chatId) return;
+
+      setMessages((oldMessages) => {
+        if (!oldMessages) return null;
+
+        const updatedMessages = oldMessages.map((message) =>
+          "createdAt" in message && message.messageId === payload.message.messageId
+            ? payload.message
+            : message,
+        );
+
+        if (payload.action === "removed") {
+          return updatedMessages;
+        }
+
+        return [
+          ...updatedMessages,
+          {
+            messageId: `reaction-${payload.message.messageId}-${payload.user.username}-${payload.createdAt}`,
+            meta: "reaction",
+            emoji: payload.emoji,
+            user: payload.user,
+            dateTime: new Date(payload.createdAt),
+          },
+        ];
+      });
+
+      const burstKey = `${payload.user.username}-${payload.createdAt}`;
+      setActiveReactionBursts((oldBursts) => [...oldBursts, { user: payload.user, emoji: payload.emoji, key: burstKey }]);
+
+      const existingTimer = reactionTimersRef.current.get(burstKey);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+      const timer = setTimeout(() => {
+        setActiveReactionBursts((oldBursts) => oldBursts.filter((burst) => burst.key !== burstKey));
+        reactionTimersRef.current.delete(burstKey);
+      }, REACTION_BURST_LIFETIME_MS);
+      reactionTimersRef.current.set(burstKey, timer);
+    };
+
     socket.emit("chatJoin", { auth, payload: chatId });
     socket.on("chatJoined", handleChatJoined);
     return () => {
@@ -129,6 +184,9 @@ export default function useSocketsForChat(chatId: string) {
       socket.off("chatUserJoined", handleUserJoined);
       socket.off("chatJoined", handleChatJoined);
       socket.off("chatMoveLog", handleMoveLog);
+      socket.off("chatReactionUpdated", handleReactionUpdated);
+      reactionTimersRef.current.forEach((timer) => clearTimeout(timer));
+      reactionTimersRef.current.clear();
       socket.emit("chatLeave", { auth, payload: chatId });
     };
   }, [socket, auth, chatId, user]);
@@ -137,5 +195,9 @@ export default function useSocketsForChat(chatId: string) {
     socket.emit("chatSendMessage", { auth, payload: { chatId, text } });
   }
 
-  return { messages, handleMessageCreation };
+  function handleToggleReaction(messageId: string, emoji: ChatReactionUpdatedPayload["emoji"]) {
+    socket.emit("chatToggleReaction", { auth, payload: { chatId, messageId, emoji } });
+  }
+
+  return { messages, handleMessageCreation, handleToggleReaction, activeReactionBursts };
 }

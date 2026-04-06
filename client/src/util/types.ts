@@ -2,6 +2,7 @@ import {
   type ClientToServerEvents,
   type ErrorMsg,
   type MessageInfo,
+  type ReactionEmoji,
   type SafeUserInfo,
   type ServerToClientEvents,
 } from "@gamenite/shared";
@@ -27,11 +28,24 @@ export type ChatMessage =
   | { messageId: string; meta: "left"; dateTime: Date; user: SafeUserInfo }
   | {
       messageId: string;
+      meta: "reaction";
+      dateTime: Date;
+      emoji: ReactionEmoji;
+      user: SafeUserInfo;
+    }
+  | {
+      messageId: string;
       meta: "move";
       dateTime: Date;
       moveDescription: string;
       user: SafeUserInfo;
     };
+
+export interface ActiveReactionBurst {
+  user: SafeUserInfo;
+  emoji: ReactionEmoji;
+  key: string;
+}
 
 export interface GameProps<View, Move> {
   userPlayerIndex: number;

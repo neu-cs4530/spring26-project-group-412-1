@@ -1,8 +1,8 @@
-import { type ChatInfo, type ChatMoveLogPayload } from "@gamenite/shared";
+import { type ChatInfo, type ChatMoveLogPayload, type ReactionEmoji } from "@gamenite/shared";
 import { getMessagesById } from "./message.service.ts";
 import { populateSafeUserInfo } from "./user.service.ts";
 import { type UserWithId } from "../types.ts";
-import type { ChatRecord, MoveLogEntry, RecordId } from "../models.ts";
+import type { ChatRecord, MoveLogEntry, ReactionLogEntry, RecordId } from "../models.ts";
 import { ChatRepo } from "../repository.ts";
 
 const chatLocks = new Map<string, Promise<void>>();
@@ -50,6 +50,14 @@ async function populateChatInfo(chatId: RecordId): Promise<ChatInfo> {
         createdAt: new Date(entry.createdAt),
       })),
     ),
+    reactionLog: await Promise.all(
+      (chat.reactionLog ?? []).map(async (entry) => ({
+        messageId: entry.messageId,
+        emoji: entry.emoji,
+        user: await populateSafeUserInfo(entry.userId),
+        createdAt: new Date(entry.createdAt),
+      })),
+    ),
   };
 }
 
@@ -64,6 +72,7 @@ export async function createChat(createdAt: Date): Promise<ChatInfo> {
     createdAt: createdAt.toISOString(),
     messages: [],
     moveLog: [],
+    reactionLog: [],
   });
   return populateChatInfo(id);
 }
@@ -159,4 +168,31 @@ export async function getMoveLog(chatId: string): Promise<MoveLogEntry[]> {
   const chat = await ChatRepo.find(chatId);
   if (!chat) return [];
   return chat.moveLog;
+}
+
+export async function addReactionLogToChat(
+  chatId: string,
+  messageId: string,
+  emoji: ReactionEmoji,
+  user: UserWithId,
+  createdAt: Date,
+): Promise<void> {
+  await withChatLock(chatId, async () => {
+    const chat = await ChatRepo.find(chatId);
+    if (!chat) throw new Error(`reaction log added to invalid chat id`);
+
+    const entry: ReactionLogEntry = {
+      messageId,
+      emoji,
+      userId: user.userId,
+      createdAt: createdAt.toISOString(),
+    };
+
+    const newChat: ChatRecord = {
+      ...chat,
+      reactionLog: [...(chat.reactionLog ?? []), entry],
+    };
+
+    await ChatRepo.set(chatId, newChat);
+  });
 }

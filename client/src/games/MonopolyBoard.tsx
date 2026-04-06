@@ -22,6 +22,8 @@ interface MonopolyBoardProps {
   userInfos: SafeUserInfo[];
   currentPlayerIndex: number;
   diceRoll?: [number, number];
+  selectedSpaceId?: number;
+  onSelectSpace?: (spaceId: number) => void;
 }
 
 const PLAYER_PIECES: LucideIcon[] = [Car, Ship, ChessKnight, Dices];
@@ -48,25 +50,46 @@ function SpaceTile({
   playersHere,
   userInfos,
   currentPlayerIndex,
+  isSelected,
+  onSelect,
 }: {
   space: BoardSpace;
   playersHere: Array<{ player: MonopolyPlayer; index: number }>;
   userInfos: SafeUserInfo[];
   currentPlayerIndex: number;
+  isSelected: boolean;
+  onSelect?: () => void;
 }) {
   const color = space.type === "property" ? space.colorGroup : undefined;
   const ownerLabel = getOwnerLabel(space, userInfos);
   const upgradedSpace = space as BoardSpaceWithBuildings;
   const houseCount = upgradedSpace.houseCount ?? 0;
   const hotelCount = upgradedSpace.hotelCount ?? 0;
+  const isOwnable =
+    space.type === "property" || space.type === "railroad" || space.type === "utility";
 
   return (
     <div
+      role={isOwnable ? "button" : undefined}
+      tabIndex={isOwnable ? 0 : undefined}
+      onClick={isOwnable ? onSelect : undefined}
+      onKeyDown={
+        isOwnable
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelect?.();
+              }
+            }
+          : undefined
+      }
       style={{
         width: "100%",
         height: "100%",
-        border: "1px solid black",
+        border: isSelected ? "2px solid oklch(0.58 0.18 255)" : "1px solid black",
         backgroundColor: "white",
+        cursor: isOwnable ? "pointer" : "default",
+        boxShadow: isSelected ? "inset 0 0 0 1px white" : undefined,
       }}
     >
       {color && (
@@ -228,6 +251,8 @@ export default function MonopolyBoard({
   userInfos,
   currentPlayerIndex,
   diceRoll,
+  selectedSpaceId,
+  onSelectSpace,
 }: MonopolyBoardProps) {
   const boardById = new Map(board.map((space) => [space.spaceId, space]));
   const renderSpace = (spaceId: number, gridColumn: number, gridRow: number) => {
@@ -268,6 +293,8 @@ export default function MonopolyBoard({
           playersHere={playersHere}
           userInfos={userInfos}
           currentPlayerIndex={currentPlayerIndex}
+          isSelected={selectedSpaceId === space.spaceId}
+          onSelect={onSelectSpace ? () => onSelectSpace(space.spaceId) : undefined}
         />
       </div>
     );

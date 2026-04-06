@@ -21,7 +21,17 @@ function makeView(playerCount = 2): MonopolyGameState {
     })),
     board: [
       { spaceId: 0, name: "Go", type: "go" },
-      { spaceId: 1, name: "Mediterranean Avenue", type: "property", price: 60, rent: 2 },
+      {
+        spaceId: 1,
+        name: "Mediterranean Avenue",
+        type: "property",
+        price: 60,
+        rent: 2,
+        colorGroup: "brown",
+        mortgageValue: 30,
+        houseCost: 50,
+        rentSchedule: [2, 10, 30, 90, 160, 250],
+      },
       { spaceId: 4, name: "Income Tax", type: "tax", amount: 200 },
       { spaceId: 10, name: "Jail", type: "jail" },
     ],
@@ -117,5 +127,15 @@ describe("MonopolyGame", () => {
     expect(screen.getByLabelText("Player token: User Two")).not.toBeNull();
     expect(screen.getByLabelText("Player token: User Three")).not.toBeNull();
     expect(screen.getByLabelText("Player token: User Four")).not.toBeNull();
+  });
+
+  it("shows a property detail card with full rent values", () => {
+    render(<MonopolyGame view={makeView()} players={PLAYERS} userPlayerIndex={0} makeMove={vi.fn()} />);
+
+    expect(screen.getByText("Selected Property")).not.toBeNull();
+    expect(screen.getByText("Purchase price: $60")).not.toBeNull();
+    expect(screen.getByText("Mortgage value: $30")).not.toBeNull();
+    expect(screen.getByText("House cost: $50 each")).not.toBeNull();
+    expect(screen.getByText("Hotel: $250")).not.toBeNull();
   });
 });

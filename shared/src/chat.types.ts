@@ -1,5 +1,5 @@
 import { type SafeUserInfo } from "./user.types.ts";
-import { type MessageInfo } from "./message.types.ts";
+import { type MessageInfo, type ReactionEmoji } from "./message.types.ts";
 
 /**
  * Represents a chat document in the database.
@@ -25,6 +25,13 @@ export interface MoveLogInfo {
   createdAt: Date;
 }
 
+export interface ReactionLogInfo {
+  messageId: string;
+  emoji: ReactionEmoji;
+  user: SafeUserInfo;
+  createdAt: Date;
+}
+
 /**
  * Represents a chat as exposed to the client
  * - `chatId`: database key
@@ -36,6 +43,7 @@ export interface ChatInfo {
   chatId: string;
   messages: MessageInfo[];
   moveLog: MoveLogInfo[];
+  reactionLog: ReactionLogInfo[];
   createdAt: Date;
 }
 
@@ -77,5 +85,14 @@ export interface ChatMoveLogPayload {
   chatId: string;
   moveDescription: string;
   user: SafeUserInfo;
+  createdAt: Date;
+}
+
+export interface ChatReactionUpdatedPayload {
+  chatId: string;
+  message: MessageInfo;
+  user: SafeUserInfo;
+  emoji: ReactionEmoji;
+  action: "added" | "removed";
   createdAt: Date;
 }
