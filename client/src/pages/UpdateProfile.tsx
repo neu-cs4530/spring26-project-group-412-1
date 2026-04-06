@@ -1,15 +1,24 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import useLoginContext from "../hooks/useLoginContext";
 import useTimeSince from "../hooks/useTimeSince";
 import useEditProfileForm from "../hooks/useEditProfileForm";
+import { PROFILE_PHOTO_MAX_BYTES } from "@gamenite/shared";
 
 const DEFAULT_PROFILE_PHOTO_SRC =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAHklEQVR4nO3BMQEAAADCoPdPbQ43oAAAAAAAAAAA4G8G2wAB9v0ZVwAAAABJRU5ErkJggg==";
+const DEFAULT_PROFILE_PHOTO_FILE_NAME = "default-profile.png";
+
+async function dataUrlToFile(dataUrl: string, fileName: string): Promise<File> {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  return new File([blob], fileName, { type: blob.type || "image/png" });
+}
 
 export default function UpdateProfile() {
   const { user } = useLoginContext();
   const timeSince = useTimeSince();
   const [showPass, setShowPass] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const {
     display,
     setDisplay,
@@ -21,11 +30,17 @@ export default function UpdateProfile() {
     setBio,
     err,
     handleSubmit,
+    photoFile,
+    photoPreviewUrl,
+    selectPhoto,
+    resetSelectedPhoto,
+    success,
   } = useEditProfileForm();
 
-  const profilePhotoSrc = user.profilePhoto
+  const currentPhotoSrc = user.profilePhoto
     ? `data:${user.profilePhoto.mimeType};base64,${user.profilePhoto.dataBase64}`
     : DEFAULT_PROFILE_PHOTO_SRC;
+  const profilePhotoSrc = photoPreviewUrl ?? currentPhotoSrc;
 
   return (
     <form className="content spacedSection" onSubmit={handleSubmit}>
@@ -49,11 +64,67 @@ export default function UpdateProfile() {
               backgroundColor: "#9ca3af",
             }}
           />
-          <ul>
-            <li>Username: {user.username}</li>
-            <li>Account created {timeSince(user.createdAt)}</li>
-            {user.bio && <li>Bio: {user.bio}</li>}
-          </ul>
+          <div className="spacedSection">
+            <ul>
+              <li>Username: {user.username}</li>
+              <li>Account created {timeSince(user.createdAt)}</li>
+              {user.bio && <li>Bio: {user.bio}</li>}
+            </ul>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const selectedFile = e.currentTarget.files?.[0] ?? null;
+                selectPhoto(selectedFile);
+              }}
+            />
+
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="secondary narrow"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Upload Photo
+              </button>
+
+              <button
+                type="button"
+                className="secondary narrow"
+                disabled={!photoFile}
+                onClick={() => {
+                  resetSelectedPhoto();
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+              >
+                Clear selection
+              </button>
+
+              <button
+                type="button"
+                className="secondary narrow"
+                onClick={async () => {
+                  const defaultPhotoFile = await dataUrlToFile(
+                    DEFAULT_PROFILE_PHOTO_SRC,
+                    DEFAULT_PROFILE_PHOTO_FILE_NAME,
+                  );
+                  selectPhoto(defaultPhotoFile);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+              >
+                Default photo
+              </button>
+            </div>
+
+            <div className="smallAndGray">
+              PNG, JPEG, or WEBP up to {Math.floor(PROFILE_PHOTO_MAX_BYTES / (1024 * 1024))} MB
+            </div>
+
+            {photoFile && <div className="smallAndGray">Selected: {photoFile.name}</div>}
+          </div>
         </div>
       </div>
       <hr />
@@ -141,6 +212,7 @@ export default function UpdateProfile() {
       </div>
       <hr />
       {err && <p className="error-message">{err}</p>}
+      {success && <p style={{ color: "green", fontSize: "14px" }}>{success}</p>}
       <div>
         <button className="primary narrow">Submit</button>
       </div>

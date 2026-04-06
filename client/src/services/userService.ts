@@ -63,3 +63,31 @@ export const getUserById = async (username: string): APIResponse<SafeUserInfo> =
     return exceptionToErrorMsg(error);
   }
 };
+
+/**
+ * Uploads or replaces a user's profile photo.
+ */
+export const uploadUserProfilePhoto = async (
+  auth: UserAuth,
+  photo: File,
+): APIResponse<SafeUserInfo> => {
+  try {
+    const formData = new FormData();
+    formData.append("authUsername", auth.username);
+    formData.append("authPassword", auth.password);
+    formData.append("photo", photo);
+
+    const res = await api.post<SafeUserInfo | ErrorMsg>(
+      `${USER_API_URL}/${auth.username}/photo`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      },
+    );
+    return res.data;
+  } catch (error) {
+    return exceptionToErrorMsg(error);
+  }
+};

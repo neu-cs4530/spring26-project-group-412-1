@@ -1,8 +1,11 @@
-import { type SubmitEvent, useState } from "react";
+import { type SubmitEvent, useMemo, useState } from "react";
 import useLoginContext from "./useLoginContext.ts";
 import useAuth from "./useAuth.ts";
-import { updateUser } from "../services/userService.ts";
+import { updateUser, uploadUserProfilePhoto } from "../services/userService.ts";
 import type { UserUpdateRequest } from "@gamenite/shared";
+import { PROFILE_PHOTO_MAX_BYTES, PROFILE_PHOTO_MIME_TYPES } from "@gamenite/shared";
+
+const profilePhotoMimeTypeSet = new Set<string>(PROFILE_PHOTO_MIME_TYPES);
 
 /**
  * Custom hook to manage profile form logic
@@ -20,14 +23,57 @@ export default function useEditProfileForm() {
   const [err, setErr] = useState<null | string>(null);
   const [bio, setBio] = useState(user.bio ?? "");
   const auth = useAuth();
+  const [success, setSuccess] = useState<null | string>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+
+  const photoPreviewUrl = useMemo(() => {
+    if (!photoFile) return null;
+    return URL.createObjectURL(photoFile);
+  }, [photoFile]);
+
+  const hasPhotoChange = photoFile !== null;
+
+  const resetSelectedPhoto = () => setPhotoFile(null);
+
+  const selectPhoto = (file: File | null) => {
+    setSuccess(null);
+    setErr(null);
+
+    if (!file) {
+      setPhotoFile(null);
+      return;
+    }
+
+    if (!profilePhotoMimeTypeSet.has(file.type)) {
+      setPhotoFile(null);
+      setErr("Profile photo must be a PNG, JPEG, or WEBP image");
+      return;
+    }
+
+    if (file.size > PROFILE_PHOTO_MAX_BYTES) {
+      setPhotoFile(null);
+      setErr(`Profile photo exceeds maximum size of ${PROFILE_PHOTO_MAX_BYTES} bytes`);
+      return;
+    }
+
+    setPhotoFile(file);
+  };
 
   /**
    * Handles submission of the form
    */
   const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setErr(null);
+    setSuccess(null);
 
-    if (user.display === display && user.bio === bio && password === confirm && password === "") {
+    if (
+      user.display === display &&
+      user.bio === bio &&
+      password === confirm &&
+      password === "" &&
+      !hasPhotoChange
+    ) {
       setErr("No changes to submit");
       return;
     }
@@ -53,24 +99,43 @@ export default function useEditProfileForm() {
     }
 
     const updates: UserUpdateRequest = {};
+    if (display !== user.display) updates.display = display;
     if (bio !== (user.bio ?? "")) updates.bio = bio;
     if (password !== "") updates.password = password;
-    const response = await updateUser(auth, updates);
-    if ("error" in response) {
-      setErr(response.error);
-      return;
+
+    try {
+      let latestUser = user;
+
+      if (photoFile) {
+        const photoResponse = await uploadUserProfilePhoto(auth, photoFile);
+        if ("error" in photoResponse) {
+          setErr(photoResponse.error);
+          return;
+        }
+        latestUser = photoResponse;
+        setUser(photoResponse);
+        setPhotoFile(null);
+      }
+
+      if (Object.keys(updates).length > 0) {
+        const response = await updateUser(auth, updates);
+        if ("error" in response) {
+          setErr(response.error);
+          return;
+        }
+        latestUser = response;
+      }
+
+      if (updates.password !== undefined) {
+        reset();
+        return;
+      }
+
+      setUser(latestUser);
+      setSuccess(photoFile ? "Profile updated and photo saved" : "Profile updated");
+    } catch {
+      setErr("Something went wrong while updating your profile");
     }
-
-    if (updates.password !== undefined) {
-      reset();
-      return;
-    }
-
-    setUser(response);
-    setErr(null);
-
-    // We need to do this — or do something else that resets the login context
-    reset();
   };
 
   return {
@@ -84,5 +149,10 @@ export default function useEditProfileForm() {
     setBio,
     err,
     handleSubmit,
+    photoFile,
+    photoPreviewUrl,
+    selectPhoto,
+    resetSelectedPhoto,
+    success,
   };
 }
