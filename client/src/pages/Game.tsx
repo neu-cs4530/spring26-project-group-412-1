@@ -109,7 +109,12 @@ export default function Game() {
 
   useEffect(() => {
     if (!showInvitePanel || !game) return;
-    void refreshSentInvites(game.gameId);
+    const refreshTimeout = setTimeout(() => {
+      void refreshSentInvites(game.gameId);
+    }, 0);
+    return () => {
+      clearTimeout(refreshTimeout);
+    };
   }, [game, refreshSentInvites, showInvitePanel]);
 
   return (

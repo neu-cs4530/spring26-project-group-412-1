@@ -1,4 +1,4 @@
-import { type SubmitEvent, useEffect, useState } from "react";
+import { type SubmitEvent, useEffect, useMemo, useState } from "react";
 import useLoginContext from "./useLoginContext.ts";
 import useAuth from "./useAuth.ts";
 import { updateUser, uploadUserProfilePhoto } from "../services/userService.ts";
@@ -25,20 +25,17 @@ export default function useEditProfileForm() {
   const auth = useAuth();
   const [success, setSuccess] = useState<null | string>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const photoPreviewUrl = useMemo(
+    () => (photoFile ? URL.createObjectURL(photoFile) : null),
+    [photoFile],
+  );
 
   useEffect(() => {
-    if (!photoFile) {
-      setPhotoPreviewUrl(null);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(photoFile);
-    setPhotoPreviewUrl(objectUrl);
+    if (!photoPreviewUrl) return;
     return () => {
-      URL.revokeObjectURL(objectUrl);
+      URL.revokeObjectURL(photoPreviewUrl);
     };
-  }, [photoFile]);
+  }, [photoPreviewUrl]);
 
   const hasPhotoChange = photoFile !== null;
 

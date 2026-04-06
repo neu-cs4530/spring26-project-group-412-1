@@ -58,6 +58,8 @@ export default function useSocketsForChat(chatId: string) {
   const reactionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
+    const reactionTimers = reactionTimersRef.current;
+
     const handleChatJoined = (chat: ChatInfo) => {
       if (chat.chatId !== chatId) return;
       socket.off("chatJoined", handleChatJoined);
@@ -172,15 +174,15 @@ export default function useSocketsForChat(chatId: string) {
         { user: payload.user, emoji: payload.emoji, key: burstKey },
       ]);
 
-      const existingTimer = reactionTimersRef.current.get(burstKey);
+      const existingTimer = reactionTimers.get(burstKey);
       if (existingTimer) {
         clearTimeout(existingTimer);
       }
       const timer = setTimeout(() => {
         setActiveReactionBursts((oldBursts) => oldBursts.filter((burst) => burst.key !== burstKey));
-        reactionTimersRef.current.delete(burstKey);
+        reactionTimers.delete(burstKey);
       }, REACTION_BURST_LIFETIME_MS);
-      reactionTimersRef.current.set(burstKey, timer);
+      reactionTimers.set(burstKey, timer);
     };
 
     socket.emit("chatJoin", { auth, payload: chatId });
@@ -191,8 +193,8 @@ export default function useSocketsForChat(chatId: string) {
       socket.off("chatJoined", handleChatJoined);
       socket.off("chatMoveLog", handleMoveLog);
       socket.off("chatReactionUpdated", handleReactionUpdated);
-      reactionTimersRef.current.forEach((timer) => clearTimeout(timer));
-      reactionTimersRef.current.clear();
+      reactionTimers.forEach((timer) => clearTimeout(timer));
+      reactionTimers.clear();
       socket.emit("chatLeave", { auth, payload: chatId });
     };
   }, [socket, auth, chatId, user]);

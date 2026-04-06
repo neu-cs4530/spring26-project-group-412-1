@@ -5,7 +5,6 @@ import {
   type MonopolyCardEffect,
   type MonopolyDeckKind,
   type MonopolyGameState,
-  type MonopolyMove,
   type MonopolyPlayer,
   type MonopolyTurnEvent,
   type OwnableSpace,
@@ -382,10 +381,6 @@ function pushEvent(events: MonopolyTurnEvent[], event: MonopolyTurnEvent): void 
 
 function isDoubles([dieOne, dieTwo]: [number, number]): boolean {
   return dieOne === dieTwo;
-}
-
-function totalJailCards(player: MonopolyPlayer): number {
-  return player.chanceGetOutOfJailFreeCards + player.communityChestGetOutOfJailFreeCards;
 }
 
 function releasePlayerFromJail(player: MonopolyPlayer): void {

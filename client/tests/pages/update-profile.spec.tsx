@@ -100,7 +100,7 @@ describe("UpdateProfile", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
-        blob: async () => new Blob(["png"], { type: "image/png" }),
+        blob: () => Promise.resolve(new Blob(["png"], { type: "image/png" })),
       }),
     );
 

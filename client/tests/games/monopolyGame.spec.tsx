@@ -127,7 +127,6 @@ describe("MonopolyGame", () => {
     const makeMove = vi.fn();
     const view = makeView();
     view.turnPhase = "awaiting_end_turn";
-    view.board[0] = view.board[0];
     if (view.board[1]?.type === "property" && view.board[2]?.type === "property") {
       view.board[1].ownerIndex = 0;
       view.board[2].ownerIndex = 0;

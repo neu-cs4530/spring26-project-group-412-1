@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type {
   MonopolyGameState,
   MonopolyMove,
@@ -140,6 +140,7 @@ function describeEvent(event: MonopolyTurnEvent, players: SafeUserInfo[]): strin
         case "automatic_bail":
           return "Left Jail after automatic bail";
       }
+      return "Left Jail";
     case "received_get_out_of_jail_card":
       return `Received a ${event.deck === "chance" ? "Chance" : "Community Chest"} Get Out of Jail Free card`;
     case "used_get_out_of_jail_card":
@@ -182,6 +183,8 @@ export default function MonopolyGame({
   const [selectedSpaceId, setSelectedSpaceId] = useState<number | null>(
     view.pendingPropertyId ?? ownableSpaces[0]?.spaceId ?? null,
   );
+  const effectiveSelectedSpaceId =
+    view.pendingPropertyId ?? selectedSpaceId ?? ownableSpaces[0]?.spaceId ?? null;
 
   const isMyTurn = view.currentPlayerIndex === userPlayerIndex;
   const currentUserPlayer = userPlayerIndex >= 0 ? view.players[userPlayerIndex] : undefined;
@@ -197,7 +200,7 @@ export default function MonopolyGame({
       ? ownableSpaces.find((space) => space.spaceId === view.pendingPropertyId)
       : undefined;
   const selectedSpace =
-    ownableSpaces.find((space) => space.spaceId === selectedSpaceId) ??
+    ownableSpaces.find((space) => space.spaceId === effectiveSelectedSpaceId) ??
     pendingProperty ??
     ownableSpaces[0];
   const jailCardCount =
@@ -231,16 +234,6 @@ export default function MonopolyGame({
     (currentUserPlayer?.money ?? 0) >= unmortgageCost(selectedSpace);
   const winnerLabel =
     view.winnerIndex !== undefined ? playerLabel(players, view.winnerIndex) : null;
-
-  useEffect(() => {
-    if (view.pendingPropertyId !== undefined) {
-      setSelectedSpaceId(view.pendingPropertyId);
-      return;
-    }
-    if (!selectedSpace && ownableSpaces[0]) {
-      setSelectedSpaceId(ownableSpaces[0].spaceId);
-    }
-  }, [ownableSpaces, selectedSpace, view.pendingPropertyId]);
 
   return (
     <div className="content spacedSection">
