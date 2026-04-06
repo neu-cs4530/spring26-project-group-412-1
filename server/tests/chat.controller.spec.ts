@@ -90,7 +90,10 @@ describe("socketToggleReaction", () => {
     await addMessageToChat(chat.chatId, user, message.messageId);
     const safeUser = await populateSafeUserInfo(user.userId);
 
-    await socketToggleReaction(mockSocket, mockServer)({
+    await socketToggleReaction(
+      mockSocket,
+      mockServer,
+    )({
       auth,
       payload: { chatId: chat.chatId, messageId: message.messageId, emoji: "👍" },
     });

@@ -41,7 +41,11 @@ function propertiesInColorGroup(view: MonopolyGameState, colorGroup: string) {
   );
 }
 
-function ownsFullColorGroup(view: MonopolyGameState, playerIndex: number, colorGroup: string): boolean {
+function ownsFullColorGroup(
+  view: MonopolyGameState,
+  playerIndex: number,
+  colorGroup: string,
+): boolean {
   const group = propertiesInColorGroup(view, colorGroup);
   return group.length > 0 && group.every((space) => space.ownerIndex === playerIndex);
 }
@@ -82,7 +86,7 @@ function canBuildHotel(
   if (colorGroupHasMortgagedProperty(view, space.colorGroup)) return false;
   if ((space.hotelCount ?? 0) > 0 || (space.houseCount ?? 0) !== 4) return false;
   return propertiesInColorGroup(view, space.colorGroup).every(
-    property =>
+    (property) =>
       property.spaceId === space.spaceId ||
       (property.hotelCount ?? 0) > 0 ||
       (property.houseCount ?? 0) === 4,
@@ -208,18 +212,25 @@ export default function MonopolyGame({
     isMyTurn && view.phase === "playing" && view.turnPhase !== "awaiting_purchase";
   const selectedOwnedByMe = selectedSpace?.ownerIndex === userPlayerIndex;
   const canBuildSelectedHouse =
-    userPlayerIndex >= 0 && canManageProperties && canBuildHouse(view, userPlayerIndex, selectedSpace);
+    userPlayerIndex >= 0 &&
+    canManageProperties &&
+    canBuildHouse(view, userPlayerIndex, selectedSpace);
   const canBuildSelectedHotel =
-    userPlayerIndex >= 0 && canManageProperties && canBuildHotel(view, userPlayerIndex, selectedSpace);
+    userPlayerIndex >= 0 &&
+    canManageProperties &&
+    canBuildHotel(view, userPlayerIndex, selectedSpace);
   const canMortgageSelected =
-    userPlayerIndex >= 0 && canManageProperties && canMortgageSpace(view, userPlayerIndex, selectedSpace);
+    userPlayerIndex >= 0 &&
+    canManageProperties &&
+    canMortgageSpace(view, userPlayerIndex, selectedSpace);
   const canUnmortgageSelected =
     userPlayerIndex >= 0 &&
     canManageProperties &&
     selectedSpace?.ownerIndex === userPlayerIndex &&
     selectedSpace.mortgaged === true &&
     (currentUserPlayer?.money ?? 0) >= unmortgageCost(selectedSpace);
-  const winnerLabel = view.winnerIndex !== undefined ? playerLabel(players, view.winnerIndex) : null;
+  const winnerLabel =
+    view.winnerIndex !== undefined ? playerLabel(players, view.winnerIndex) : null;
 
   useEffect(() => {
     if (view.pendingPropertyId !== undefined) {
@@ -257,7 +268,9 @@ export default function MonopolyGame({
             <li key={index}>
               {index === userPlayerIndex ? "You" : playerLabel(players, index)} - ${player.money}
               {player.isBankrupt && " (bankrupt)"}
-              {!player.isBankrupt && player.inJail && ` (in jail, turn ${player.jailTurns + 1} of 3)`}
+              {!player.isBankrupt &&
+                player.inJail &&
+                ` (in jail, turn ${player.jailTurns + 1} of 3)`}
               {index === view.currentPlayerIndex && view.phase === "playing" && " (current turn)"}
               {!player.isBankrupt &&
                 (player.chanceGetOutOfJailFreeCards > 0 ||
@@ -349,7 +362,9 @@ export default function MonopolyGame({
                   <button
                     className="secondary narrow"
                     disabled={!canBuildSelectedHouse}
-                    onClick={() => makeMove({ type: "build_house", spaceId: selectedSpace.spaceId })}
+                    onClick={() =>
+                      makeMove({ type: "build_house", spaceId: selectedSpace.spaceId })
+                    }
                   >
                     Build House
                   </button>
@@ -358,7 +373,9 @@ export default function MonopolyGame({
                   <button
                     className="secondary narrow"
                     disabled={!canBuildSelectedHotel}
-                    onClick={() => makeMove({ type: "build_hotel", spaceId: selectedSpace.spaceId })}
+                    onClick={() =>
+                      makeMove({ type: "build_hotel", spaceId: selectedSpace.spaceId })
+                    }
                   >
                     Build Hotel
                   </button>
@@ -368,7 +385,8 @@ export default function MonopolyGame({
                   disabled={!canMortgageSelected}
                   onClick={() =>
                     makeMove({ type: "mortgage_property", spaceId: selectedSpace.spaceId })
-                  }>
+                  }
+                >
                   Mortgage
                 </button>
                 <button
@@ -376,7 +394,8 @@ export default function MonopolyGame({
                   disabled={!canUnmortgageSelected}
                   onClick={() =>
                     makeMove({ type: "unmortgage_property", spaceId: selectedSpace.spaceId })
-                  }>
+                  }
+                >
                   Unmortgage
                 </button>
               </div>
@@ -415,7 +434,11 @@ export default function MonopolyGame({
 
       {selectedSpace && (
         <div className="spacedSection">
-          <h3>{pendingProperty?.spaceId === selectedSpace.spaceId ? "Pending Property" : "Selected Property"}</h3>
+          <h3>
+            {pendingProperty?.spaceId === selectedSpace.spaceId
+              ? "Pending Property"
+              : "Selected Property"}
+          </h3>
           <MonopolyPropertyCard space={selectedSpace} />
         </div>
       )}
@@ -462,9 +485,7 @@ export default function MonopolyGame({
                 </span>
                 {space.mortgaged && <span>Mortgaged</span>}
                 {space.type === "property" && (
-                  <span>
-                    {space.hotelCount ? "1 hotel" : `${space.houseCount ?? 0} houses`}
-                  </span>
+                  <span>{space.hotelCount ? "1 hotel" : `${space.houseCount ?? 0} houses`}</span>
                 )}
               </button>
             ))}

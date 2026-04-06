@@ -80,7 +80,10 @@ export default function useSocketsForChat(chatId: string) {
         dateTime: new Date(entry.createdAt),
       }));
 
-      const allMessages = mergeByTime(mergeByTime(chatMessages, moveLogMessages), reactionLogMessages);
+      const allMessages = mergeByTime(
+        mergeByTime(chatMessages, moveLogMessages),
+        reactionLogMessages,
+      );
 
       setMessages([
         ...allMessages,
@@ -164,7 +167,10 @@ export default function useSocketsForChat(chatId: string) {
       });
 
       const burstKey = `${payload.user.username}-${payload.createdAt}`;
-      setActiveReactionBursts((oldBursts) => [...oldBursts, { user: payload.user, emoji: payload.emoji, key: burstKey }]);
+      setActiveReactionBursts((oldBursts) => [
+        ...oldBursts,
+        { user: payload.user, emoji: payload.emoji, key: burstKey },
+      ]);
 
       const existingTimer = reactionTimersRef.current.get(burstKey);
       if (existingTimer) {

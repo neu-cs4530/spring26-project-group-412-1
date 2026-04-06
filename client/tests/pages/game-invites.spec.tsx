@@ -98,8 +98,14 @@ describe("Game invite host panel", () => {
 
   it("loads sent invites for the waiting-room host and lets them cancel a pending invite", async () => {
     mockGetSentInvites
-      .mockResolvedValueOnce([sentInvite("invite-1", "pending"), sentInvite("invite-2", "accepted")])
-      .mockResolvedValueOnce([sentInvite("invite-1", "canceled"), sentInvite("invite-2", "accepted")]);
+      .mockResolvedValueOnce([
+        sentInvite("invite-1", "pending"),
+        sentInvite("invite-2", "accepted"),
+      ])
+      .mockResolvedValueOnce([
+        sentInvite("invite-1", "canceled"),
+        sentInvite("invite-2", "accepted"),
+      ]);
     mockCancelInviteRequest.mockResolvedValue(sentInvite("invite-1", "canceled"));
 
     render(<Game />);

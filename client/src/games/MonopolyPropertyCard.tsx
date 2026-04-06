@@ -58,7 +58,9 @@ export default function MonopolyPropertyCard({ space }: { space: OwnableSpace })
         {space.type === "property" ? (
           <div>
             Buildings:{" "}
-            {space.hotelCount ? "1 hotel" : `${space.houseCount ?? 0} house${space.houseCount === 1 ? "" : "s"}`}
+            {space.hotelCount
+              ? "1 hotel"
+              : `${space.houseCount ?? 0} house${space.houseCount === 1 ? "" : "s"}`}
           </div>
         ) : null}
       </div>

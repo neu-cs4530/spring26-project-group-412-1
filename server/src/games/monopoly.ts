@@ -296,23 +296,9 @@ function createInitialBoard(): BoardSpace[] {
     propertySpace(29, "Marvin Gardens", 280, "yellow", 150, [24, 120, 360, 850, 1025, 1200]),
     { spaceId: 30, name: "Go To Jail", type: "go_to_jail" },
     propertySpace(31, "Pacific Avenue", 300, "green", 200, [26, 130, 390, 900, 1100, 1275]),
-    propertySpace(
-      32,
-      "North Carolina Avenue",
-      300,
-      "green",
-      200,
-      [26, 130, 390, 900, 1100, 1275],
-    ),
+    propertySpace(32, "North Carolina Avenue", 300, "green", 200, [26, 130, 390, 900, 1100, 1275]),
     { spaceId: 33, name: "Community Chest", type: "community_chest" },
-    propertySpace(
-      34,
-      "Pennsylvania Avenue",
-      320,
-      "green",
-      200,
-      [28, 150, 450, 1000, 1200, 1400],
-    ),
+    propertySpace(34, "Pennsylvania Avenue", 320, "green", 200, [28, 150, 450, 1000, 1200, 1400]),
     railroadSpace(35, "Short Line Railroad"),
     { spaceId: 36, name: "Chance", type: "chance" },
     propertySpace(37, "Park Place", 350, "darkblue", 200, [35, 175, 500, 1100, 1300, 1500]),
@@ -759,8 +745,10 @@ function canBuildHotel(
   if (!ownsFullColorGroup(state, playerIndex, property.colorGroup)) return false;
   if (colorGroupHasMortgagedProperty(state, property.colorGroup)) return false;
   if ((property.hotelCount ?? 0) > 0 || (property.houseCount ?? 0) !== 4) return false;
-  return propertiesInColorGroup(state, property.colorGroup).every(
-    space => (space.spaceId === property.spaceId ? true : (space.hotelCount ?? 0) > 0 || (space.houseCount ?? 0) === 4),
+  return propertiesInColorGroup(state, property.colorGroup).every((space) =>
+    space.spaceId === property.spaceId
+      ? true
+      : (space.hotelCount ?? 0) > 0 || (space.houseCount ?? 0) === 4,
   );
 }
 
@@ -931,7 +919,11 @@ export function applyCardEffect(
       return;
     case "collect_from_each_player":
       for (let index = 0; index < state.players.length; index += 1) {
-        if (index === playerIndex || state.players[index].isBankrupt || state.phase === "finished") {
+        if (
+          index === playerIndex ||
+          state.players[index].isBankrupt ||
+          state.phase === "finished"
+        ) {
           continue;
         }
         transferMoney(state, index, playerIndex, effect.amount, effect.source, events);
@@ -939,7 +931,11 @@ export function applyCardEffect(
       return;
     case "pay_each_player":
       for (let index = 0; index < state.players.length; index += 1) {
-        if (index === playerIndex || state.players[index].isBankrupt || state.phase === "finished") {
+        if (
+          index === playerIndex ||
+          state.players[index].isBankrupt ||
+          state.phase === "finished"
+        ) {
           continue;
         }
         transferMoney(state, playerIndex, index, effect.amount, effect.source, events);

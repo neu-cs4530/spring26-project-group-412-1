@@ -72,7 +72,9 @@ describe("MessageList reactions", () => {
     render(<MessageList messages={makeMessages()} handleToggleReaction={handleToggleReaction} />);
 
     expect(
-      screen.getByText((_, element) => element?.textContent === "User Two reacted with 😂 just now"),
+      screen.getByText(
+        (_, element) => element?.textContent === "User Two reacted with 😂 just now",
+      ),
     ).not.toBeNull();
     expect(screen.getByRole("button", { name: "👍 1" })).not.toBeNull();
 

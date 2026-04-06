@@ -3,17 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SafeUserInfo, UserAuth } from "@gamenite/shared";
 import { defaultProfilePhoto } from "@gamenite/shared";
 
-const {
-  mockUseLoginContext,
-  mockUseAuth,
-  mockUpdateUser,
-  mockUploadUserProfilePhoto,
-} = vi.hoisted(() => ({
-  mockUseLoginContext: vi.fn(),
-  mockUseAuth: vi.fn(),
-  mockUpdateUser: vi.fn(),
-  mockUploadUserProfilePhoto: vi.fn(),
-}));
+const { mockUseLoginContext, mockUseAuth, mockUpdateUser, mockUploadUserProfilePhoto } = vi.hoisted(
+  () => ({
+    mockUseLoginContext: vi.fn(),
+    mockUseAuth: vi.fn(),
+    mockUpdateUser: vi.fn(),
+    mockUploadUserProfilePhoto: vi.fn(),
+  }),
+);
 
 vi.mock("../../src/hooks/useLoginContext.ts", () => ({
   default: mockUseLoginContext,

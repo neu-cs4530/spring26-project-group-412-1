@@ -8,7 +8,10 @@ function makeState(playerCount = 2): MonopolyGameState {
 
 function ownableSpace(state: MonopolyGameState, spaceId: number): OwnableSpace {
   const space = state.board.find((candidate) => candidate.spaceId === spaceId);
-  if (!space || (space.type !== "property" && space.type !== "railroad" && space.type !== "utility")) {
+  if (
+    !space ||
+    (space.type !== "property" && space.type !== "railroad" && space.type !== "utility")
+  ) {
     throw new Error(`Expected ownable space ${spaceId}`);
   }
   return space;
@@ -165,7 +168,13 @@ describe("Monopoly turn and rule resolution", () => {
     state.players[0].position = 0;
     state.lastTurnEvents = [];
 
-    applyCardEffect(state, 0, { type: "move_to_space", spaceId: 1 }, "chance", state.lastTurnEvents);
+    applyCardEffect(
+      state,
+      0,
+      { type: "move_to_space", spaceId: 1 },
+      "chance",
+      state.lastTurnEvents,
+    );
 
     expect(state.players[0].money).toBe(1496);
     expect(state.players[1].money).toBe(1504);
@@ -589,9 +598,14 @@ describe("Monopoly card and move descriptions", () => {
       "won the game",
     );
 
-    expect(monopolyLogic.describeMove(bought, monopolyLogic.update(bought, { type: "end_turn" }, 0)!, { type: "end_turn" }, 0)).toBe(
-      " ended their turn",
-    );
+    expect(
+      monopolyLogic.describeMove(
+        bought,
+        monopolyLogic.update(bought, { type: "end_turn" }, 0)!,
+        { type: "end_turn" },
+        0,
+      ),
+    ).toBe(" ended their turn");
   });
 
   it("describes building and mortgage actions clearly", () => {

@@ -6,7 +6,11 @@ describe("message.service reactions", () => {
   it("adds, changes, and removes a single user's reaction on a message", async () => {
     const author = await enforceAuth({ username: "user1", password: "pwd1111" });
     const reactor = await enforceAuth({ username: "user2", password: "pwd2222" });
-    const message = await createMessage(author, "hello world", new Date("2026-01-01T00:00:00.000Z"));
+    const message = await createMessage(
+      author,
+      "hello world",
+      new Date("2026-01-01T00:00:00.000Z"),
+    );
 
     const added = await toggleMessageReaction(reactor, message.messageId, "👍");
     expect(added.action).toBe("added");

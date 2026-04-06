@@ -121,10 +121,12 @@ describe("POST /api/invite/sent", () => {
       });
     expect(sent.status).toBe(200);
 
-    response = await supertest(app).post("/api/invite/sent").send({
-      auth: auth1,
-      payload: { includeHistory: true },
-    });
+    response = await supertest(app)
+      .post("/api/invite/sent")
+      .send({
+        auth: auth1,
+        payload: { includeHistory: true },
+      });
     expect(response.status).toBe(200);
     expect(response.body).toHaveLength(1);
     expect(response.body[0]).toMatchObject({

@@ -11,9 +11,13 @@ interface MessageListProps {
   handleToggleReaction: (messageId: string, emoji: ReactionEmoji) => void;
 }
 
-function hasCurrentUserReaction(message: MessageInfo, username: string, emoji: ReactionEmoji): boolean {
+function hasCurrentUserReaction(
+  message: MessageInfo,
+  username: string,
+  emoji: ReactionEmoji,
+): boolean {
   return message.reactions.some(
-    reaction =>
+    (reaction) =>
       reaction.emoji === emoji && reaction.reactedBy.some((user) => user.username === username),
   );
 }
@@ -44,7 +48,8 @@ export default function MessageList({ messages, handleToggleReaction }: MessageL
             if (message.meta === "reaction") {
               return (
                 <div key={message.messageId} className="chatMeta">
-                  <UserLink user={message.user} /> reacted with {message.emoji} {timeSince(message.dateTime)}
+                  <UserLink user={message.user} /> reacted with {message.emoji}{" "}
+                  {timeSince(message.dateTime)}
                 </div>
               );
             }
@@ -69,7 +74,8 @@ export default function MessageList({ messages, handleToggleReaction }: MessageL
                       setReactionPickerMessageId((current) =>
                         current === message.messageId ? null : message.messageId,
                       )
-                    }>
+                    }
+                  >
                     React
                   </button>
                 </div>
@@ -83,14 +89,16 @@ export default function MessageList({ messages, handleToggleReaction }: MessageL
                         onClick={() => {
                           handleToggleReaction(message.messageId, emoji);
                           setReactionPickerMessageId(null);
-                        }}>
+                        }}
+                      >
                         {emoji}
                       </button>
                     ))}
                     <button
                       type="button"
                       className="chatReactionCancel"
-                      onClick={() => setReactionPickerMessageId(null)}>
+                      onClick={() => setReactionPickerMessageId(null)}
+                    >
                       Cancel
                     </button>
                   </div>
@@ -103,7 +111,8 @@ export default function MessageList({ messages, handleToggleReaction }: MessageL
                         type="button"
                         className="chatReactionBadge"
                         data-active={hasCurrentUserReaction(message, user.username, reaction.emoji)}
-                        onClick={() => handleToggleReaction(message.messageId, reaction.emoji)}>
+                        onClick={() => handleToggleReaction(message.messageId, reaction.emoji)}
+                      >
                         {reaction.emoji} {reaction.reactedBy.length}
                       </button>
                     ))}
@@ -126,7 +135,8 @@ export default function MessageList({ messages, handleToggleReaction }: MessageL
                     setReactionPickerMessageId((current) =>
                       current === message.messageId ? null : message.messageId,
                     )
-                  }>
+                  }
+                >
                   React
                 </button>
               </div>
@@ -140,14 +150,16 @@ export default function MessageList({ messages, handleToggleReaction }: MessageL
                       onClick={() => {
                         handleToggleReaction(message.messageId, emoji);
                         setReactionPickerMessageId(null);
-                      }}>
+                      }}
+                    >
                       {emoji}
                     </button>
                   ))}
                   <button
                     type="button"
                     className="chatReactionCancel"
-                    onClick={() => setReactionPickerMessageId(null)}>
+                    onClick={() => setReactionPickerMessageId(null)}
+                  >
                     Cancel
                   </button>
                 </div>
@@ -160,7 +172,8 @@ export default function MessageList({ messages, handleToggleReaction }: MessageL
                       type="button"
                       className="chatReactionBadge"
                       data-active={hasCurrentUserReaction(message, user.username, reaction.emoji)}
-                      onClick={() => handleToggleReaction(message.messageId, reaction.emoji)}>
+                      onClick={() => handleToggleReaction(message.messageId, reaction.emoji)}
+                    >
                       {reaction.emoji} {reaction.reactedBy.length}
                     </button>
                   ))}
