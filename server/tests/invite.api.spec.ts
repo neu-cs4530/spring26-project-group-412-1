@@ -110,6 +110,31 @@ describe("POST /api/invite/mine", () => {
   });
 });
 
+describe("POST /api/invite/sent", () => {
+  it("returns invite history for the inviter", async () => {
+    const roomId = await createRoomAsUser1();
+    const sent = await supertest(app)
+      .post("/api/invite/send")
+      .send({
+        auth: auth1,
+        payload: { roomId, inviteeUsername: "user2" },
+      });
+    expect(sent.status).toBe(200);
+
+    response = await supertest(app).post("/api/invite/sent").send({
+      auth: auth1,
+      payload: { includeHistory: true },
+    });
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0]).toMatchObject({
+      inviteId: sent.body.inviteId,
+      status: "pending",
+      roomId,
+    });
+  });
+});
+
 describe("invite actions", () => {
   it("accepts invite and removes it from actionable list", async () => {
     const roomId = await createRoomAsUser1();

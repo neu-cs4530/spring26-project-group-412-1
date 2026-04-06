@@ -1,11 +1,10 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import useLoginContext from "../hooks/useLoginContext";
 import useTimeSince from "../hooks/useTimeSince";
 import useEditProfileForm from "../hooks/useEditProfileForm";
 import { PROFILE_PHOTO_MAX_BYTES } from "@gamenite/shared";
+import { DEFAULT_PROFILE_PHOTO_SRC, getProfilePhotoSrc } from "../util/profilePhoto.ts";
 
-const DEFAULT_PROFILE_PHOTO_SRC =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAHklEQVR4nO3BMQEAAADCoPdPbQ43oAAAAAAAAAAA4G8G2wAB9v0ZVwAAAABJRU5ErkJggg==";
 const DEFAULT_PROFILE_PHOTO_FILE_NAME = "default-profile.png";
 
 async function dataUrlToFile(dataUrl: string, fileName: string): Promise<File> {
@@ -37,10 +36,15 @@ export default function UpdateProfile() {
     success,
   } = useEditProfileForm();
 
-  const currentPhotoSrc = user.profilePhoto
-    ? `data:${user.profilePhoto.mimeType};base64,${user.profilePhoto.dataBase64}`
-    : DEFAULT_PROFILE_PHOTO_SRC;
+  useEffect(() => {
+    if (!photoFile && fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, [photoFile]);
+
+  const currentPhotoSrc = getProfilePhotoSrc(user.profilePhoto);
   const profilePhotoSrc = photoPreviewUrl ?? currentPhotoSrc;
+  const isPreviewingPendingPhoto = photoPreviewUrl !== null;
 
   return (
     <form className="content spacedSection" onSubmit={handleSubmit}>
@@ -48,22 +52,27 @@ export default function UpdateProfile() {
       <div>
         <h3>General information</h3>
         <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem" }}>
-          <img
-            src={profilePhotoSrc}
-            alt={`${user.display}'s profile`}
-            onError={(e) => {
-              e.currentTarget.src = DEFAULT_PROFILE_PHOTO_SRC;
-            }}
-            style={{
-              width: "96px",
-              height: "96px",
-              objectFit: "cover",
-              borderRadius: "50%",
-              border: "1px solid #ccc",
-              flexShrink: 0,
-              backgroundColor: "#9ca3af",
-            }}
-          />
+          <div style={{ flexShrink: 0 }}>
+            <img
+              src={profilePhotoSrc}
+              alt={`${user.display}'s profile`}
+              onError={(e) => {
+                e.currentTarget.src = DEFAULT_PROFILE_PHOTO_SRC;
+              }}
+              style={{
+                width: "96px",
+                height: "96px",
+                objectFit: "cover",
+                borderRadius: "50%",
+                border: "1px solid #ccc",
+                flexShrink: 0,
+                backgroundColor: "#9ca3af",
+              }}
+            />
+            <div className="smallAndGray" style={{ marginTop: "0.5rem" }}>
+              {isPreviewingPendingPhoto ? "Previewing selected photo" : "Current saved photo"}
+            </div>
+          </div>
           <div className="spacedSection">
             <ul>
               <li>Username: {user.username}</li>
@@ -112,10 +121,9 @@ export default function UpdateProfile() {
                     DEFAULT_PROFILE_PHOTO_FILE_NAME,
                   );
                   selectPhoto(defaultPhotoFile);
-                  if (fileInputRef.current) fileInputRef.current.value = "";
                 }}
               >
-                Default photo
+                Use default photo
               </button>
             </div>
 
@@ -123,7 +131,11 @@ export default function UpdateProfile() {
               PNG, JPEG, or WEBP up to {Math.floor(PROFILE_PHOTO_MAX_BYTES / (1024 * 1024))} MB
             </div>
 
-            {photoFile && <div className="smallAndGray">Selected: {photoFile.name}</div>}
+            {photoFile ? (
+              <div className="smallAndGray">Selected: {photoFile.name}</div>
+            ) : (
+              <div className="smallAndGray">Changes are saved when you submit the form.</div>
+            )}
           </div>
         </div>
       </div>

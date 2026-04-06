@@ -23,6 +23,7 @@ export default function Home() {
   const [invites, setInvites] = useState<InviteInfo[]>([]);
   const [inviteErr, setInviteErr] = useState<string | null>(null);
   const [loadingInvites, setLoadingInvites] = useState(true);
+  const [inviteActionId, setInviteActionId] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
   const refreshInvites = useCallback(async () => {
@@ -62,24 +63,42 @@ export default function Home() {
   }, [refreshInvites]);
 
   const handleAccept = async (inviteId: string) => {
+    setInviteActionId(inviteId);
+    setInviteErr(null);
     const response = await acceptInviteRequest(auth, inviteId);
     if ("error" in response) {
-      setInviteErr(response.error);
+      await refreshInvites();
+      if (mountedRef.current) {
+        setInviteErr(response.error);
+        setInviteActionId(null);
+      }
       return;
     }
 
     await refreshInvites();
+    if (mountedRef.current) {
+      setInviteActionId(null);
+    }
     navigate(`/game/${response.roomId}`);
   };
 
   const handleDecline = async (inviteId: string) => {
+    setInviteActionId(inviteId);
+    setInviteErr(null);
     const response = await declineInviteRequest(auth, inviteId);
     if ("error" in response) {
-      setInviteErr(response.error);
+      await refreshInvites();
+      if (mountedRef.current) {
+        setInviteErr(response.error);
+        setInviteActionId(null);
+      }
       return;
     }
 
     await refreshInvites();
+    if (mountedRef.current) {
+      setInviteActionId(null);
+    }
   };
 
   return (
@@ -106,12 +125,17 @@ export default function Home() {
                   <strong>Sent:</strong> {invite.createdAt.toLocaleString()}
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-                  <button className="primary narrow" onClick={() => handleAccept(invite.inviteId)}>
-                    Accept
+                  <button
+                    className="primary narrow"
+                    onClick={() => handleAccept(invite.inviteId)}
+                    disabled={inviteActionId === invite.inviteId}
+                  >
+                    {inviteActionId === invite.inviteId ? "Working..." : "Accept"}
                   </button>
                   <button
                     className="secondary narrow"
                     onClick={() => handleDecline(invite.inviteId)}
+                    disabled={inviteActionId === invite.inviteId}
                   >
                     Decline
                   </button>

@@ -32,6 +32,23 @@ export const getMineInvites = async (
   }
 };
 
+export const getSentInvites = async (
+  auth: UserAuth,
+  includeHistory = true,
+): APIResponse<InviteInfo[]> => {
+  try {
+    const res = await api.post<InviteInfo[] | ErrorMsg>(`${INVITE_API_URL}/sent`, {
+      auth,
+      payload: { includeHistory },
+    });
+
+    if ("error" in res.data) return res.data;
+    return res.data.map(reviveInviteDates);
+  } catch (error) {
+    return exceptionToErrorMsg(error);
+  }
+};
+
 export const sendInviteRequest = async (
   auth: UserAuth,
   roomId: string,
@@ -73,6 +90,23 @@ export const declineInviteRequest = async (
 ): APIResponse<InviteInfo> => {
   try {
     const res = await api.post<InviteInfo | ErrorMsg>(`${INVITE_API_URL}/${inviteId}/decline`, {
+      auth,
+      payload: {},
+    });
+
+    if ("error" in res.data) return res.data;
+    return reviveInviteDates(res.data);
+  } catch (error) {
+    return exceptionToErrorMsg(error);
+  }
+};
+
+export const cancelInviteRequest = async (
+  auth: UserAuth,
+  inviteId: string,
+): APIResponse<InviteInfo> => {
+  try {
+    const res = await api.post<InviteInfo | ErrorMsg>(`${INVITE_API_URL}/${inviteId}/cancel`, {
       auth,
       payload: {},
     });

@@ -160,4 +160,28 @@ describe("Home invites behavior", () => {
     });
     expect(screen.getByText("No pending invites")).not.toBeNull();
   });
+
+  it("refreshes invites and surfaces the error when accept fails", async () => {
+    mockGetMineInvites
+      .mockResolvedValueOnce([pendingInvite("invite-stale")])
+      .mockResolvedValueOnce([]);
+    mockAcceptInviteRequest.mockResolvedValue({ error: "Invite is expired" });
+
+    render(<Home />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Accept" })).not.toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Accept" }));
+
+    await waitFor(() => {
+      expect(mockAcceptInviteRequest).toHaveBeenCalledExactlyOnceWith(auth, "invite-stale");
+    });
+    await waitFor(() => {
+      expect(mockGetMineInvites).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getByText("Invite is expired")).not.toBeNull();
+    expect(mockUseNavigate).not.toHaveBeenCalled();
+  });
 });

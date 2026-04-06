@@ -17,6 +17,8 @@ vi.mock("../../src/services/api.ts", () => ({
 
 import {
   acceptInviteRequest,
+  cancelInviteRequest,
+  getSentInvites,
   declineInviteRequest,
   getMineInvites,
   sendInviteRequest,
@@ -64,15 +66,17 @@ describe("inviteService", () => {
     }
   });
 
-  it("calls canonical endpoints for send/accept/decline with expected payloads", async () => {
+  it("calls canonical endpoints for send/accept/decline/cancel with expected payloads", async () => {
     mockPost
       .mockResolvedValueOnce({ data: rawInvite("invite-send") })
       .mockResolvedValueOnce({ data: { ...rawInvite("invite-accept"), status: "accepted" } })
-      .mockResolvedValueOnce({ data: { ...rawInvite("invite-decline"), status: "declined" } });
+      .mockResolvedValueOnce({ data: { ...rawInvite("invite-decline"), status: "declined" } })
+      .mockResolvedValueOnce({ data: { ...rawInvite("invite-cancel"), status: "canceled" } });
 
     await sendInviteRequest(auth, "room-1", "user3");
     await acceptInviteRequest(auth, "invite-accept");
     await declineInviteRequest(auth, "invite-decline");
+    await cancelInviteRequest(auth, "invite-cancel");
 
     expect(mockPost).toHaveBeenNthCalledWith(1, "/api/invite/send", {
       auth,
@@ -86,6 +90,28 @@ describe("inviteService", () => {
       auth,
       payload: {},
     });
+    expect(mockPost).toHaveBeenNthCalledWith(4, "/api/invite/invite-cancel/cancel", {
+      auth,
+      payload: {},
+    });
+  });
+
+  it("calls POST /sent with includeHistory=true and revives date fields", async () => {
+    mockPost.mockResolvedValue({ data: [rawInvite("invite-sent")] });
+
+    const result = await getSentInvites(auth);
+
+    expect(mockPost).toHaveBeenCalledExactlyOnceWith("/api/invite/sent", {
+      auth,
+      payload: { includeHistory: true },
+    });
+    expect("error" in result).toBe(false);
+    if (!("error" in result)) {
+      expect(result).toHaveLength(1);
+      expect(result[0].createdAt).toBeInstanceOf(Date);
+      expect(result[0].updatedAt).toBeInstanceOf(Date);
+      expect(result[0].expiresAt).toBeInstanceOf(Date);
+    }
   });
 
   it("returns mapped ErrorMsg when request throws", async () => {

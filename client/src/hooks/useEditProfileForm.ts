@@ -1,4 +1,4 @@
-import { type SubmitEvent, useMemo, useState } from "react";
+import { type SubmitEvent, useEffect, useState } from "react";
 import useLoginContext from "./useLoginContext.ts";
 import useAuth from "./useAuth.ts";
 import { updateUser, uploadUserProfilePhoto } from "../services/userService.ts";
@@ -25,15 +25,28 @@ export default function useEditProfileForm() {
   const auth = useAuth();
   const [success, setSuccess] = useState<null | string>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
 
-  const photoPreviewUrl = useMemo(() => {
-    if (!photoFile) return null;
-    return URL.createObjectURL(photoFile);
+  useEffect(() => {
+    if (!photoFile) {
+      setPhotoPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(photoFile);
+    setPhotoPreviewUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
   }, [photoFile]);
 
   const hasPhotoChange = photoFile !== null;
 
-  const resetSelectedPhoto = () => setPhotoFile(null);
+  const resetSelectedPhoto = () => {
+    setSuccess(null);
+    setErr(null);
+    setPhotoFile(null);
+  };
 
   const selectPhoto = (file: File | null) => {
     setSuccess(null);
@@ -66,10 +79,12 @@ export default function useEditProfileForm() {
     e.preventDefault();
     setErr(null);
     setSuccess(null);
+    const currentBio = user.bio ?? "";
+    const uploadedPhoto = photoFile;
 
     if (
       user.display === display &&
-      user.bio === bio &&
+      currentBio === bio &&
       password === confirm &&
       password === "" &&
       !hasPhotoChange
@@ -100,14 +115,15 @@ export default function useEditProfileForm() {
 
     const updates: UserUpdateRequest = {};
     if (display !== user.display) updates.display = display;
-    if (bio !== (user.bio ?? "")) updates.bio = bio;
+    if (bio !== currentBio) updates.bio = bio;
     if (password !== "") updates.password = password;
+    let didUploadPhoto = false;
 
     try {
       let latestUser = user;
 
-      if (photoFile) {
-        const photoResponse = await uploadUserProfilePhoto(auth, photoFile);
+      if (uploadedPhoto) {
+        const photoResponse = await uploadUserProfilePhoto(auth, uploadedPhoto);
         if ("error" in photoResponse) {
           setErr(photoResponse.error);
           return;
@@ -115,11 +131,16 @@ export default function useEditProfileForm() {
         latestUser = photoResponse;
         setUser(photoResponse);
         setPhotoFile(null);
+        didUploadPhoto = true;
       }
 
       if (Object.keys(updates).length > 0) {
         const response = await updateUser(auth, updates);
         if ("error" in response) {
+          if (didUploadPhoto) {
+            setErr(`Profile photo updated, but other changes failed: ${response.error}`);
+            return;
+          }
           setErr(response.error);
           return;
         }
@@ -132,8 +153,18 @@ export default function useEditProfileForm() {
       }
 
       setUser(latestUser);
-      setSuccess(photoFile ? "Profile updated and photo saved" : "Profile updated");
+      if (uploadedPhoto && Object.keys(updates).length > 0) {
+        setSuccess("Profile and photo updated");
+      } else if (uploadedPhoto) {
+        setSuccess("Profile photo updated");
+      } else {
+        setSuccess("Profile updated");
+      }
     } catch {
+      if (didUploadPhoto) {
+        setErr("Profile photo may have been updated, but another profile change failed");
+        return;
+      }
       setErr("Something went wrong while updating your profile");
     }
   };

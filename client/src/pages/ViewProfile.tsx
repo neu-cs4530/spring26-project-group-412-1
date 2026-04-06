@@ -2,13 +2,11 @@ import type { SafeUserInfo } from "@gamenite/shared";
 import { useEffect, useState } from "react";
 import useTimeSince from "../hooks/useTimeSince";
 import { getUserById } from "../services/userService";
+import { DEFAULT_PROFILE_PHOTO_SRC, getProfilePhotoSrc } from "../util/profilePhoto.ts";
 
 interface ViewProfileProps {
   username: string;
 }
-
-const DEFAULT_PROFILE_PHOTO_SRC =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAHklEQVR4nO3BMQEAAADCoPdPbQ43oAAAAAAAAAAA4G8G2wAB9v0ZVwAAAABJRU5ErkJggg==";
 
 export default function ViewProfile({ username }: ViewProfileProps) {
   const [componentState, setComponentState] = useState<
@@ -45,9 +43,7 @@ export default function ViewProfile({ username }: ViewProfileProps) {
       return <div>Loading...</div>;
     case "profile": {
       const { user } = componentState;
-      const profilePhotoSrc = user.profilePhoto
-        ? `data:${user.profilePhoto.mimeType};base64,${user.profilePhoto.dataBase64}`
-        : DEFAULT_PROFILE_PHOTO_SRC;
+      const profilePhotoSrc = getProfilePhotoSrc(user.profilePhoto);
 
       return (
         <>
