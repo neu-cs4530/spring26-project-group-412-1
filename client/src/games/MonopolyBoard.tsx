@@ -31,6 +31,7 @@ const PLAYER_PIECES: LucideIcon[] = [Car, Ship, ChessKnight, Dices];
 type BoardSpaceWithBuildings = BoardSpace & {
   houseCount?: number;
   hotelCount?: number;
+  mortgaged?: boolean;
 };
 
 function getOwnerLabel(space: BoardSpace, userInfos: SafeUserInfo[]) {
@@ -65,6 +66,7 @@ function SpaceTile({
   const upgradedSpace = space as BoardSpaceWithBuildings;
   const houseCount = upgradedSpace.houseCount ?? 0;
   const hotelCount = upgradedSpace.hotelCount ?? 0;
+  const mortgaged = upgradedSpace.mortgaged ?? false;
   const isOwnable =
     space.type === "property" || space.type === "railroad" || space.type === "utility";
 
@@ -170,6 +172,19 @@ function SpaceTile({
             }}
           >
             Owner: {ownerLabel}
+          </div>
+        )}
+
+        {mortgaged && (
+          <div
+            style={{
+              fontSize: "0.5rem",
+              textAlign: "center",
+              color: "firebrick",
+              fontWeight: 700,
+            }}
+          >
+            Mortgaged
           </div>
         )}
 

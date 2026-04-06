@@ -26,9 +26,12 @@ export interface PropertySpace {
   price: number;
   rent: number;
   ownerIndex?: number;
+  mortgaged?: boolean;
   colorGroup: string;
   mortgageValue?: number;
   houseCost?: number;
+  houseCount?: number;
+  hotelCount?: number;
   rentSchedule?: [number, number, number, number, number, number];
 }
 
@@ -39,6 +42,7 @@ export interface RailroadSpace {
   price: number;
   rent: number;
   ownerIndex?: number;
+  mortgaged?: boolean;
   mortgageValue?: number;
   railroadRentSchedule?: [number, number, number, number];
 }
@@ -50,6 +54,7 @@ export interface UtilitySpace {
   price: number;
   rent: number;
   ownerIndex?: number;
+  mortgaged?: boolean;
   mortgageValue?: number;
   utilityMultiplierSchedule?: [number, number];
 }
@@ -88,15 +93,28 @@ export interface MonopolyPlayer {
   isBankrupt: boolean;
   inJail: boolean;
   jailTurns: number;
+  chanceGetOutOfJailFreeCards: number;
+  communityChestGetOutOfJailFreeCards: number;
 }
 
 export type MonopolyDeckKind = "chance" | "community_chest";
+export type MonopolyTurnPhase = "awaiting_roll" | "awaiting_purchase" | "awaiting_end_turn";
 
 export type MonopolyCardEffect =
   | { type: "move_to_space"; spaceId: number }
   | { type: "move_by"; spaces: number }
-  | { type: "move_to_nearest"; spaceType: "railroad" | "utility" }
-  | { type: "go_to_jail" };
+  | {
+      type: "move_to_nearest";
+      spaceType: "railroad" | "utility";
+      rentMultiplier?: number;
+      utilityMultiplierOverride?: number;
+    }
+  | { type: "go_to_jail" }
+  | { type: "receive_money"; amount: number; source: string }
+  | { type: "pay_money"; amount: number; source: string }
+  | { type: "collect_from_each_player"; amount: number; source: string }
+  | { type: "pay_each_player"; amount: number; source: string }
+  | { type: "get_out_of_jail_free" };
 
 export interface MonopolyCard {
   id: string;
@@ -130,6 +148,16 @@ export type MonopolyTurnEvent =
       spaceName: string;
     }
   | {
+      type: "paid_money";
+      amount: number;
+      source: string;
+    }
+  | {
+      type: "received_money";
+      amount: number;
+      source: string;
+    }
+  | {
       type: "drew_card";
       deck: MonopolyDeckKind;
       cardId: string;
@@ -160,6 +188,73 @@ export type MonopolyTurnEvent =
   | {
       type: "left_jail";
       method: "rolled_doubles" | "paid_bail" | "automatic_bail";
+    }
+  | {
+      type: "received_get_out_of_jail_card";
+      deck: MonopolyDeckKind;
+    }
+  | {
+      type: "used_get_out_of_jail_card";
+      deck: MonopolyDeckKind;
+    }
+  | {
+      type: "property_available";
+      spaceId: number;
+      spaceName: string;
+      price: number;
+    }
+  | {
+      type: "property_purchased";
+      spaceId: number;
+      spaceName: string;
+      price: number;
+    }
+  | {
+      type: "property_purchase_skipped";
+      spaceId: number;
+      spaceName: string;
+    }
+  | {
+      type: "paid_rent";
+      amount: number;
+      spaceId: number;
+      spaceName: string;
+      ownerIndex: number;
+    }
+  | {
+      type: "built_house";
+      spaceId: number;
+      spaceName: string;
+      houseCount: number;
+      amount: number;
+    }
+  | {
+      type: "built_hotel";
+      spaceId: number;
+      spaceName: string;
+      amount: number;
+    }
+  | {
+      type: "mortgaged_property";
+      spaceId: number;
+      spaceName: string;
+      amount: number;
+    }
+  | {
+      type: "unmortgaged_property";
+      spaceId: number;
+      spaceName: string;
+      amount: number;
+    }
+  | {
+      type: "bankruptcy";
+      playerIndex: number;
+      creditorIndex?: number;
+      reason: string;
+    }
+  | {
+      type: "won_game";
+      winnerIndex: number;
     };
 
 /**
@@ -173,6 +268,34 @@ export const zMonopolyMove = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("pay_bail"),
   }),
+  z.object({
+    type: z.literal("use_get_out_of_jail_card"),
+  }),
+  z.object({
+    type: z.literal("buy_property"),
+  }),
+  z.object({
+    type: z.literal("pass_property"),
+  }),
+  z.object({
+    type: z.literal("end_turn"),
+  }),
+  z.object({
+    type: z.literal("build_house"),
+    spaceId: z.number(),
+  }),
+  z.object({
+    type: z.literal("build_hotel"),
+    spaceId: z.number(),
+  }),
+  z.object({
+    type: z.literal("mortgage_property"),
+    spaceId: z.number(),
+  }),
+  z.object({
+    type: z.literal("unmortgage_property"),
+    spaceId: z.number(),
+  }),
 ]);
 
 /**
@@ -184,9 +307,15 @@ export interface MonopolyGameState {
   board: BoardSpace[];
   currentPlayerIndex: number;
   phase: "waiting" | "playing" | "finished";
+  turnPhase: MonopolyTurnPhase;
+  pendingPropertyId?: number;
+  extraTurn: boolean;
+  consecutiveDoubles: number;
   winnerIndex?: number;
   diceRoll?: [number, number];
   chanceCursor: number;
   communityChestCursor: number;
+  chanceGetOutOfJailFreeAvailable: boolean;
+  communityChestGetOutOfJailFreeAvailable: boolean;
   lastTurnEvents: MonopolyTurnEvent[];
 }

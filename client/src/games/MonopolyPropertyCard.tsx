@@ -1,5 +1,13 @@
 import type { OwnableSpace } from "@gamenite/shared";
 
+function mortgageValue(space: OwnableSpace) {
+  return space.mortgageValue ?? Math.floor(space.price / 2);
+}
+
+function unmortgageCost(space: OwnableSpace) {
+  return Math.ceil((mortgageValue(space) * 11) / 10);
+}
+
 function colorChip(colorGroup?: string) {
   if (!colorGroup) return null;
   return (
@@ -41,9 +49,17 @@ export default function MonopolyPropertyCard({ space }: { space: OwnableSpace })
 
       <div style={{ display: "grid", gap: "0.35rem", fontSize: "0.95rem" }}>
         <div>Purchase price: ${space.price}</div>
-        <div>Mortgage value: ${space.mortgageValue ?? Math.floor(space.price / 2)}</div>
+        <div>Mortgage value: ${mortgageValue(space)}</div>
+        <div>Mortgage status: {space.mortgaged ? "Mortgaged" : "Active"}</div>
+        {space.mortgaged ? <div>Unmortgage cost: ${unmortgageCost(space)}</div> : null}
         {space.type === "property" && space.houseCost !== undefined ? (
           <div>House cost: ${space.houseCost} each</div>
+        ) : null}
+        {space.type === "property" ? (
+          <div>
+            Buildings:{" "}
+            {space.hotelCount ? "1 hotel" : `${space.houseCount ?? 0} house${space.houseCount === 1 ? "" : "s"}`}
+          </div>
         ) : null}
       </div>
 
