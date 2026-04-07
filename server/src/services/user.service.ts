@@ -157,7 +157,7 @@ export async function updateUserProfilePhoto(
   }
 
   if (profilePhoto.size > MAX_PROFILE_PHOTO_BYTES) {
-    throw new Error(`Profile photo exceeds maximum size of ${MAX_PROFILE_PHOTO_BYTES} bytes`);
+    throw new Error(`Profile photo exceeds maximum size of 2 MB`);
   }
 
   if (!allowedProfilePhotoMimeTypes.has(profilePhoto.mimetype as ProfilePhotoMimeType)) {

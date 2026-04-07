@@ -38,7 +38,7 @@ export function profilePhotoUploadMiddleware(
     if (err instanceof multer.MulterError) {
       if (err.code === "LIMIT_FILE_SIZE") {
         res.status(400).send({
-          error: `Profile photo exceeds maximum size of ${MAX_PROFILE_PHOTO_BYTES} bytes`,
+          error: `Profile photo exceeds maximum size of 2 MB`,
         });
         return;
       }
