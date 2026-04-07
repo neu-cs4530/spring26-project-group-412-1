@@ -97,11 +97,16 @@ function SpaceTile({
       {color && (
         <div
           style={{
-            height: "10px",
+            minHeight: "0.9rem",
             backgroundColor: color,
             borderBottom: "1px solid black",
+            textAlign: "center",
+            fontSize: "0.45rem",
+            fontWeight: 700,
           }}
-        />
+        >
+          {ownerLabel ?? ""}
+        </div>
       )}
 
       <div
@@ -160,18 +165,6 @@ function SpaceTile({
                 strokeWidth={2.25}
               />
             ))}
-          </div>
-        )}
-
-        {ownerLabel && (
-          <div
-            style={{
-              fontSize: "0.5rem",
-              textAlign: "center",
-              color: "grey",
-            }}
-          >
-            Owner: {ownerLabel}
           </div>
         )}
 

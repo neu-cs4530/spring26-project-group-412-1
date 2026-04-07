@@ -219,7 +219,7 @@ describe("POST /api/user/:username/photo", () => {
 
     expect(response.status).toBe(400);
     expect(response.body).toStrictEqual({
-      error: `Profile photo exceeds maximum size of ${MAX_PROFILE_PHOTO_BYTES} bytes`,
+      error: `Profile photo exceeds maximum size of 2 MB`,
     });
   });
 });

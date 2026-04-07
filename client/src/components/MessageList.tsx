@@ -38,10 +38,16 @@ export default function MessageList({ messages, handleToggleReaction }: MessageL
         {messages.map((message) => {
           if ("meta" in message) {
             if (message.meta === "move") {
+              const isMyMove = message.user.username === user.username;
+              const moveDescription =
+                isMyMove && message.moveDescription === " ended their turn"
+                  ? " ended your turn"
+                  : message.moveDescription;
+
               return (
                 <div key={message.messageId} className="chatMoveLog">
-                  <UserLink user={message.user} />
-                  {message.moveDescription}
+                  {isMyMove ? "You" : <UserLink user={message.user} />}
+                  {moveDescription}
                 </div>
               );
             }

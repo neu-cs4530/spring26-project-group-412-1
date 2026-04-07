@@ -62,7 +62,7 @@ export default function useEditProfileForm() {
 
     if (file.size > PROFILE_PHOTO_MAX_BYTES) {
       setPhotoFile(null);
-      setErr(`Profile photo exceeds maximum size of ${PROFILE_PHOTO_MAX_BYTES} bytes`);
+      setErr(`Profile photo exceeds maximum size of 2 MB`);
       return;
     }
 

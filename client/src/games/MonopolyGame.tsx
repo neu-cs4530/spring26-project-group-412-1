@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import type {
   MonopolyGameState,
   MonopolyMove,
@@ -10,10 +10,14 @@ import type {
 import MonopolyBoard from "./MonopolyBoard";
 import type { GameProps } from "../util/types.ts";
 import MonopolyPropertyCard from "./MonopolyPropertyCard.tsx";
+import { Car, Ship, ChessKnight, Dices } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 function playerLabel(players: SafeUserInfo[], playerIndex: number): string {
   return players[playerIndex]?.display ?? `P${playerIndex + 1}`;
 }
+
+const PLAYER_PIECES: LucideIcon[] = [Car, Ship, ChessKnight, Dices];
 
 function turnPhaseLabel(turnPhase: MonopolyTurnPhase): string {
   switch (turnPhase) {
@@ -256,21 +260,37 @@ export default function MonopolyGame({
 
       <div>
         <h3>Players</h3>
-        <ul>
-          {view.players.map((player, index) => (
-            <li key={index}>
-              {index === userPlayerIndex ? "You" : playerLabel(players, index)} - ${player.money}
-              {player.isBankrupt && " (bankrupt)"}
-              {!player.isBankrupt &&
-                player.inJail &&
-                ` (in jail, turn ${player.jailTurns + 1} of 3)`}
-              {index === view.currentPlayerIndex && view.phase === "playing" && " (current turn)"}
-              {!player.isBankrupt &&
-                (player.chanceGetOutOfJailFreeCards > 0 ||
-                  player.communityChestGetOutOfJailFreeCards > 0) &&
-                ` (${player.chanceGetOutOfJailFreeCards + player.communityChestGetOutOfJailFreeCards} jail card${player.chanceGetOutOfJailFreeCards + player.communityChestGetOutOfJailFreeCards === 1 ? "" : "s"})`}
-            </li>
-          ))}
+        <ul style={{ listStyle: "none", paddingLeft: 0 }}>
+          {view.players.map((player, index) => {
+            const pieceIcon = PLAYER_PIECES[index % PLAYER_PIECES.length];
+            return (
+              <li
+                key={index}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.35rem",
+                }}
+              >
+                {React.createElement(pieceIcon, { size: 14, strokeWidth: 2.25 })}
+                <span>
+                  {index === userPlayerIndex ? "You" : playerLabel(players, index)} - $
+                  {player.money}
+                  {player.isBankrupt && " (bankrupt)"}
+                  {!player.isBankrupt &&
+                    player.inJail &&
+                    ` (in jail, turn ${player.jailTurns + 1} of 3)`}
+                  {index === view.currentPlayerIndex &&
+                    view.phase === "playing" &&
+                    " (current turn)"}
+                  {!player.isBankrupt &&
+                    (player.chanceGetOutOfJailFreeCards > 0 ||
+                      player.communityChestGetOutOfJailFreeCards > 0) &&
+                    ` (${player.chanceGetOutOfJailFreeCards + player.communityChestGetOutOfJailFreeCards} jail card${player.chanceGetOutOfJailFreeCards + player.communityChestGetOutOfJailFreeCards === 1 ? "" : "s"})`}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </div>
 
