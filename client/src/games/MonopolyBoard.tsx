@@ -97,15 +97,25 @@ function SpaceTile({
       {color && (
         <div
           style={{
-            minHeight: "0.9rem",
+            minHeight: "0.9Rem",
             backgroundColor: color,
             borderBottom: "1px solid black",
             textAlign: "center",
             fontSize: "0.45rem",
             fontWeight: 700,
           }}
+          title={ownerLabel}
         >
-          {ownerLabel ?? ""}
+          <span
+            style={{
+              fontSize: "0.45rem",
+              fontWeight: 700,
+              whiteSpace: "nowrap",
+              maxWidth: "100%",
+            }}
+          >
+            {ownerLabel ?? ""}
+          </span>
         </div>
       )}
 
@@ -113,7 +123,7 @@ function SpaceTile({
         style={{
           flex: 1,
           minHeight: 0,
-          padding: "0.2rem",
+          padding: "0.25rem 0.15rem 0.15rem",
         }}
       >
         <div
@@ -312,9 +322,8 @@ export default function MonopolyBoard({
     <div className="spacedSection">
       <div
         style={{
-          width: "100%",
-          maxWidth: "900px",
-          aspectRatio: "1 / 1",
+          width: "min(600px, 95vw)",
+          height: "min(700px, 95vw)",
           display: "grid",
           gridTemplateColumns: `repeat(11, 1fr)`,
           gridTemplateRows: `repeat(11, 1fr)`,
