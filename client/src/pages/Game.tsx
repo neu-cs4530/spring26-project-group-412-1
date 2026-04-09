@@ -6,6 +6,7 @@ import type { GameInfo, InviteInfo } from "@gamenite/shared";
 import ChatPanel from "../components/ChatPanel.tsx";
 import GamePanel from "../components/GamePanel.tsx";
 import useAuth from "../hooks/useAuth.ts";
+import useLoginContext from "../hooks/useLoginContext.ts";
 import {
   cancelInviteRequest,
   getSentInvites,
@@ -24,6 +25,7 @@ export default function Game() {
   const [loadingSentInvites, setLoadingSentInvites] = useState(false);
   const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(null);
   const auth = useAuth();
+  const { socket } = useLoginContext();
 
   useEffect(() => {
     let ignore = false;
@@ -117,6 +119,19 @@ export default function Game() {
     };
   }, [game, refreshSentInvites, showInvitePanel]);
 
+  useEffect(() => {
+    if (!showInvitePanel || !game) return;
+    const handleStatusUpdate = (invite: InviteInfo) => {
+      if (invite.roomId === game.gameId) {
+        setSentInvites((prev) => prev.map((i) => (i.inviteId === invite.inviteId ? invite : i)));
+      }
+    };
+    socket.on("inviteStatusUpdated", handleStatusUpdate);
+    return () => {
+      socket.off("inviteStatusUpdated", handleStatusUpdate);
+    };
+  }, [socket, showInvitePanel, game]);
+
   return (
     game && (
       <>
@@ -154,7 +169,7 @@ export default function Game() {
                 <div className="dottedList">
                   {sentInvites.map((invite) => (
                     <div className="dottedListItem" key={invite.inviteId}>
-                      <strong>{invite.inviteeId}</strong> - {invite.status}
+                      <strong>{invite.inviteeUsername}</strong> - {invite.status}
                       {invite.status === "pending" ? (
                         <>
                           {" "}

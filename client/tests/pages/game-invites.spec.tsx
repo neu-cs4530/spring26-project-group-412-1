@@ -9,6 +9,7 @@ const {
   mockGetSentInvites,
   mockSendInviteRequest,
   mockCancelInviteRequest,
+  mockSocket,
 } = vi.hoisted(() => ({
   mockUseParams: vi.fn(),
   mockGetGameById: vi.fn(),
@@ -16,6 +17,7 @@ const {
   mockGetSentInvites: vi.fn(),
   mockSendInviteRequest: vi.fn(),
   mockCancelInviteRequest: vi.fn(),
+  mockSocket: { on: vi.fn(), off: vi.fn(), emit: vi.fn() },
 }));
 
 vi.mock("react-router-dom", async () => {
@@ -38,6 +40,10 @@ vi.mock("../../src/services/inviteService.ts", () => ({
   getSentInvites: mockGetSentInvites,
   sendInviteRequest: mockSendInviteRequest,
   cancelInviteRequest: mockCancelInviteRequest,
+}));
+
+vi.mock("../../src/hooks/useLoginContext.ts", () => ({
+  default: () => ({ socket: mockSocket, user: { username: "host", display: "Host" } }),
 }));
 
 vi.mock("../../src/components/GamePanel.tsx", () => ({
@@ -74,7 +80,9 @@ function sentInvite(inviteId: string, status: InviteInfo["status"]): InviteInfo 
     roomId: "room-1",
     gameType: "monopoly",
     inviterId: "host-id",
+    inviterUsername: "host",
     inviteeId: `invitee-${inviteId}`,
+    inviteeUsername: `invitee-${inviteId}`,
     status,
     createdAt: now,
     updatedAt: now,
@@ -90,6 +98,9 @@ describe("Game invite host panel", () => {
     mockGetSentInvites.mockReset();
     mockSendInviteRequest.mockReset();
     mockCancelInviteRequest.mockReset();
+    mockSocket.on.mockReset();
+    mockSocket.off.mockReset();
+    mockSocket.emit.mockReset();
 
     mockUseParams.mockReturnValue({ gameId: "room-1" });
     mockGetGameById.mockResolvedValue(gameInfo);
