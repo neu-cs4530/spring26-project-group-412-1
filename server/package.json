@@ -8,7 +8,7 @@
     "prettier": "prettier --ignore-path ../.gitignore --check . ",
     "prettier:fix": "prettier --ignore-path ../.gitignore --write .",
     "test": "vitest run --coverage",
-    "dev": "nodemon --watch src --exec node ./src/server.ts",
+    "dev": "nodemon --watch src --exec tsx ./src/server.ts",
     "start": "MODE=production node ./src/server.ts",
     "vitest": "vitest"
   },
@@ -19,6 +19,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "nodemon": "^3.1.11",
     "supertest": "^7.2.2",
+    "tsx": "^4.21.0",
     "vitest": "^4.0.18"
   },
   "dependencies": {
