@@ -5,6 +5,7 @@ import {
   InviteByInviterRepo,
   InvitePendingByRoomInviteeRepo,
   InviteRepo,
+  UserRepo,
 } from "../repository.ts";
 import { type InviteRecord } from "../models.ts";
 import { type UserWithId } from "../types.ts";
@@ -26,12 +27,14 @@ async function getInviteRecord(inviteId: string): Promise<InviteRecord> {
  */
 async function populateInviteInfo(inviteId: string): Promise<InviteInfo> {
   const invite = await getInviteRecord(inviteId);
+  const inviterRecord = await UserRepo.find(invite.inviterId);
   return {
     inviteId,
     roomId: invite.roomId,
     gameType: invite.gameType,
     inviterId: invite.inviterId,
     inviteeId: invite.inviteeId,
+    inviterUsername: inviterRecord?.username ?? invite.inviterId,
     status: invite.status,
     createdAt: new Date(invite.createdAt),
     updatedAt: new Date(invite.updatedAt),

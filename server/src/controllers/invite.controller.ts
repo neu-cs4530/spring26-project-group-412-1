@@ -6,7 +6,7 @@ import {
   zInviteListPayload,
 } from "@gamenite/shared";
 import { type Response } from "express";
-import { type RestAPI } from "../types.ts";
+import { type RestAPI, type GameServerSocket } from "../types.ts";
 import { checkAuth } from "../services/auth.service.ts";
 import {
   acceptInvite,
@@ -16,6 +16,7 @@ import {
   getInvitesForInvitee,
   getInvitesForInviter,
 } from "../services/invite.service.ts";
+import { io } from "../app.ts";
 import { z } from "zod";
 
 function sendInviteError<R>(res: Response<R | { error: string }>, message: string) {
@@ -54,6 +55,21 @@ function sendInviteError<R>(res: Response<R | { error: string }>, message: strin
 }
 
 /**
+ * Handle socket registration join a personal room so the server can push
+ * invite notifications to this specific user.
+ */
+export const socketRegisterUser = (socket: GameServerSocket) => async (body: unknown) => {
+  try {
+    const { auth } = withAuth(z.record(z.never())).parse(body);
+    const user = await checkAuth(auth);
+    if (!user) return;
+    await socket.join(`user:${user.username}`);
+  } catch {
+    // ignore auth failures silently
+  }
+};
+
+/**
  * Handle POST requests to `/api/invite/send`.
  */
 export const postSend: RestAPI<InviteInfo> = async (req, res) => {
@@ -76,6 +92,10 @@ export const postSend: RestAPI<InviteInfo> = async (req, res) => {
       body.data.payload.inviteeUsername,
       new Date(),
     );
+
+    // Push a real-time notification to the invitee's personal socket room
+    io.to(`user:${body.data.payload.inviteeUsername}`).emit("inviteReceived", invite);
+
     res.send(invite);
   } catch (err) {
     sendInviteError(res, err instanceof Error ? err.message : "Unexpected invite error");
@@ -217,7 +237,4 @@ export const postByIdCancel: RestAPI<InviteInfo, { id: string }> = async (req, r
   }
 };
 
-/**
- * Compatibility alias for POST /api/invite/create.
- */
 export const postCreate = postSend;

@@ -13,7 +13,7 @@ import { type GameServer } from "./types.ts";
 
 export const app = express();
 export const httpServer = http.createServer(app);
-const io: GameServer = new Server(httpServer);
+export const io: GameServer = new Server(httpServer);
 
 app.use(express.json());
 
@@ -69,6 +69,9 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log(`CONN [${socketId}] disconnected`);
   });
+
+  // Join a personal room so the server can push invite notifications to this user
+  socket.on("userRegister", invite.socketRegisterUser(socket));
 
   socket.on("chatJoin", chat.socketJoin(socket, io));
   socket.on("chatLeave", chat.socketLeave(socket, io));
