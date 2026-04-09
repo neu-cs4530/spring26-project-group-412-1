@@ -74,6 +74,7 @@ io.on("connection", (socket) => {
   socket.on("chatLeave", chat.socketLeave(socket, io));
   socket.on("chatSendMessage", chat.socketSendMessage(socket, io));
   socket.on("chatToggleReaction", chat.socketToggleReaction(socket, io));
+  socket.on("gameBoardReaction", chat.socketBoardReaction(socket, io));
 
   socket.on("gameJoinAsPlayer", game.socketJoinAsPlayer(socket, io));
   socket.on("gameMakeMove", game.socketMakeMove(socket, io));

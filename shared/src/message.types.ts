@@ -43,3 +43,12 @@ export const zToggleMessageReactionRequest = z.object({
   messageId: z.string(),
   emoji: zReactionEmoji,
 });
+
+/**
+ * Relevant information for sending a board reaction
+ */
+export type BoardReactionPayload = z.infer<typeof zBoardReactionRequest>;
+export const zBoardReactionRequest = z.object({
+  chatId: z.string(),
+  emoji: z.string(),
+});

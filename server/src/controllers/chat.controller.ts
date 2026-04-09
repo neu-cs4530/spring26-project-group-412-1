@@ -1,4 +1,4 @@
-import { withAuth, zNewMessageRequest, zToggleMessageReactionRequest } from "@gamenite/shared";
+import { withAuth, zNewMessageRequest, zToggleMessageReactionRequest, zBoardReactionRequest } from "@gamenite/shared";
 import { type SocketAPI } from "../types.ts";
 import { z } from "zod";
 import { addMessageToChat, addReactionLogToChat, forceChatById } from "../services/chat.service.ts";
@@ -91,6 +91,22 @@ export const socketToggleReaction: SocketAPI = (socket, io) => async (body) => {
       action: result.action,
       createdAt: now,
     });
+  } catch (err) {
+    logSocketError(socket, err);
+  }
+};
+
+/**
+ * Handle a board reaction: broadcast the emoji to everyone in the chat room.
+ */
+export const socketBoardReaction: SocketAPI = (socket, io) => async (body) => {
+  try {
+    const {
+      auth,
+      payload: { chatId, emoji },
+    } = withAuth(zBoardReactionRequest).parse(body);
+    const user = await enforceAuth(auth);
+    io.to(chatId).emit("gameBoardReactionBroadcast", { username: user.username, emoji });
   } catch (err) {
     logSocketError(socket, err);
   }
