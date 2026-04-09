@@ -47,4 +47,5 @@ export interface ServerToClientEvents {
   gameStateUpdated: (payload: TaggedGameView & { forPlayer: boolean }) => void;
   gameWatched: (payload: GamePlayInfo) => void;
   inviteReceived: (payload: InviteInfo) => void;
+  inviteStatusUpdated: (payload: InviteInfo) => void;
 }

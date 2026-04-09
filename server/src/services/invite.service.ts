@@ -27,7 +27,10 @@ async function getInviteRecord(inviteId: string): Promise<InviteRecord> {
  */
 async function populateInviteInfo(inviteId: string): Promise<InviteInfo> {
   const invite = await getInviteRecord(inviteId);
-  const inviterRecord = await UserRepo.find(invite.inviterId);
+  const [inviterRecord, inviteeRecord] = await Promise.all([
+    UserRepo.find(invite.inviterId),
+    UserRepo.find(invite.inviteeId),
+  ]);
   return {
     inviteId,
     roomId: invite.roomId,
@@ -35,6 +38,7 @@ async function populateInviteInfo(inviteId: string): Promise<InviteInfo> {
     inviterId: invite.inviterId,
     inviteeId: invite.inviteeId,
     inviterUsername: inviterRecord?.username ?? invite.inviterId,
+    inviteeUsername: inviteeRecord?.username ?? invite.inviteeId,
     status: invite.status,
     createdAt: new Date(invite.createdAt),
     updatedAt: new Date(invite.updatedAt),

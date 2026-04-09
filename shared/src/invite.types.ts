@@ -30,6 +30,7 @@ export interface InviteInfo {
   inviterId: string;
   inviteeId: string;
   inviterUsername: string;
+  inviteeUsername: string;
   status: InviteStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -44,6 +45,7 @@ export const zInviteInfo = z.object({
   inviterId: z.string(),
   inviteeId: z.string(),
   inviterUsername: z.string(),
+  inviteeUsername: z.string(),
   status: zInviteStatus,
   createdAt: z.date(),
   updatedAt: z.date(),
