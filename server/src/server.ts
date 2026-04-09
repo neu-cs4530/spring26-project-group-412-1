@@ -12,13 +12,20 @@ import { resetEverythingToDefaults } from "./initRepository.ts";
 
 // If a MONGO_STR environment variable is given (or set in `server/.env`),
 // then use MongoDB to create the repository.
-const MONGO_STR = process.env.MONGO_STR || null;
+const MONGO_STR = process.env.MONGO_STR?.trim() || null;
 const MONGO_DB_NAME = process.env.MONGO_DB_NAME || "GameNite";
-if (MONGO_STR) {
+const isValidMongoConnectionString = (value: string) =>
+  value.startsWith("mongodb://") || value.startsWith("mongodb+srv://");
+
+if (MONGO_STR && isValidMongoConnectionString(MONGO_STR)) {
   setDbInitializer(<T>(name: string) => {
     const mongoConnection = new KeyvMongo(MONGO_STR, { collection: name, db: MONGO_DB_NAME });
     return new Keyv<T>(mongoConnection);
   });
+} else if (MONGO_STR) {
+  console.warn(
+    "Ignoring invalid MONGO_STR. It must start with 'mongodb://' or 'mongodb+srv://'. Falling back to in-memory storage.",
+  );
 }
 
 // We only want to initialize the database once, so we check whether
