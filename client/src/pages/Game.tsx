@@ -42,7 +42,7 @@ export default function Game() {
   const refreshSentInvites = useCallback(
     async (roomId: string) => {
       setLoadingSentInvites(true);
-      const response = await getSentInvites(auth, true);
+      const response = await getSentInvites(auth, false);
 
       if ("error" in response) {
         setSentInviteErr(response.error);
@@ -123,7 +123,7 @@ export default function Game() {
     if (!showInvitePanel || !game) return;
     const handleStatusUpdate = (invite: InviteInfo) => {
       if (invite.roomId === game.gameId) {
-        setSentInvites((prev) => prev.map((i) => (i.inviteId === invite.inviteId ? invite : i)));
+        setSentInvites((prev) => prev.filter((i) => i.inviteId !== invite.inviteId));
       }
     };
     socket.on("inviteStatusUpdated", handleStatusUpdate);

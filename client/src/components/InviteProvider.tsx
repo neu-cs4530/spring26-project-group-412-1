@@ -25,6 +25,10 @@ export default function InviteProvider({ children }: { children: JSX.Element }) 
     if (!("error" in response)) setInvites(response);
   }, [auth]);
 
+  const removeInvite = useCallback((inviteId: string) => {
+    setInvites((prev) => prev.filter((i) => i.inviteId !== inviteId));
+  }, []);
+
   // Initial load + fallback polling (in case socket misses anything)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -41,6 +45,8 @@ export default function InviteProvider({ children }: { children: JSX.Element }) 
   // Real-time: add the invite immediately when the server pushes it
   useEffect(() => {
     const handleInviteReceived = (invite: InviteInfo) => {
+      // Ignore invites not meant for this user (guards against stale socket rooms)
+      if (invite.inviteeUsername !== auth.username) return;
       setInvites((prev) => {
         if (prev.some((i) => i.inviteId === invite.inviteId)) return prev;
         return [invite, ...prev];
@@ -51,10 +57,26 @@ export default function InviteProvider({ children }: { children: JSX.Element }) 
     return () => {
       socket.off("inviteReceived", handleInviteReceived);
     };
+  }, [socket, auth.username]);
+
+  // Real-time: remove invite when host cancels it
+  useEffect(() => {
+    const handleStatusUpdated = (invite: InviteInfo) => {
+      if (invite.status !== "pending") {
+        setInvites((prev) => prev.filter((i) => i.inviteId !== invite.inviteId));
+      }
+    };
+
+    socket.on("inviteStatusUpdated", handleStatusUpdated);
+    return () => {
+      socket.off("inviteStatusUpdated", handleStatusUpdated);
+    };
   }, [socket]);
 
   return (
-    <InviteContext.Provider value={{ invites, pendingCount: invites.length, refreshInvites }}>
+    <InviteContext.Provider
+      value={{ invites, pendingCount: invites.length, refreshInvites, removeInvite }}
+    >
       {children}
     </InviteContext.Provider>
   );

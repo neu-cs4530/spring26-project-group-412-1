@@ -126,10 +126,8 @@ describe("Home invites behavior", () => {
     clearIntervalSpy.mockRestore();
   });
 
-  it("accept action calls service, refreshes list, and navigates to room", async () => {
-    mockGetMineInvites
-      .mockResolvedValueOnce([pendingInvite("invite-accept")])
-      .mockResolvedValueOnce([]);
+  it("accept action calls service, removes invite optimistically, and navigates to room", async () => {
+    mockGetMineInvites.mockResolvedValueOnce([pendingInvite("invite-accept")]);
     mockAcceptInviteRequest.mockResolvedValue({
       ...pendingInvite("invite-accept"),
       status: "accepted",
@@ -146,16 +144,12 @@ describe("Home invites behavior", () => {
     await waitFor(() => {
       expect(mockAcceptInviteRequest).toHaveBeenCalledExactlyOnceWith(auth, "invite-accept");
     });
-    await waitFor(() => {
-      expect(mockGetMineInvites).toHaveBeenCalledTimes(2);
-    });
+    expect(mockGetMineInvites).toHaveBeenCalledTimes(1);
     expect(mockUseNavigate).toHaveBeenCalledExactlyOnceWith("/game/room-1");
   });
 
-  it("decline action calls service, refreshes list, and updates UI", async () => {
-    mockGetMineInvites
-      .mockResolvedValueOnce([pendingInvite("invite-decline")])
-      .mockResolvedValueOnce([]);
+  it("decline action calls service, removes invite optimistically, and updates UI", async () => {
+    mockGetMineInvites.mockResolvedValueOnce([pendingInvite("invite-decline")]);
     mockDeclineInviteRequest.mockResolvedValue({
       ...pendingInvite("invite-decline"),
       status: "declined",
@@ -173,9 +167,9 @@ describe("Home invites behavior", () => {
       expect(mockDeclineInviteRequest).toHaveBeenCalledExactlyOnceWith(auth, "invite-decline");
     });
     await waitFor(() => {
-      expect(mockGetMineInvites).toHaveBeenCalledTimes(2);
+      expect(screen.getByText("No pending invites")).not.toBeNull();
     });
-    expect(screen.getByText("No pending invites")).not.toBeNull();
+    expect(mockGetMineInvites).toHaveBeenCalledTimes(1);
   });
 
   it("refreshes invites and surfaces the error when accept fails", async () => {

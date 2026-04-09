@@ -14,13 +14,14 @@ export default function Home() {
   const navigate = useNavigate();
   const auth = useAuth();
 
-  const { invites, refreshInvites } = useContext(InviteContext);
+  const { invites, refreshInvites, removeInvite } = useContext(InviteContext);
   const [inviteErr, setInviteErr] = useState<string | null>(null);
   const [inviteActionId, setInviteActionId] = useState<string | null>(null);
 
   const handleAccept = async (inviteId: string) => {
     setInviteActionId(inviteId);
     setInviteErr(null);
+    removeInvite(inviteId);
     const response = await acceptInviteRequest(auth, inviteId);
     if ("error" in response) {
       await refreshInvites();
@@ -28,7 +29,6 @@ export default function Home() {
       setInviteActionId(null);
       return;
     }
-    await refreshInvites();
     setInviteActionId(null);
     navigate(`/game/${response.roomId}`);
   };
@@ -36,14 +36,12 @@ export default function Home() {
   const handleDecline = async (inviteId: string) => {
     setInviteActionId(inviteId);
     setInviteErr(null);
+    removeInvite(inviteId);
     const response = await declineInviteRequest(auth, inviteId);
     if ("error" in response) {
       await refreshInvites();
       setInviteErr(response.error);
-      setInviteActionId(null);
-      return;
     }
-    await refreshInvites();
     setInviteActionId(null);
   };
 

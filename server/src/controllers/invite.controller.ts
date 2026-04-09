@@ -16,6 +16,7 @@ import {
   getInvitesForInvitee,
   getInvitesForInviter,
 } from "../services/invite.service.ts";
+import { getGameById } from "../services/game.service.ts";
 import { io } from "../app.ts";
 import { z } from "zod";
 
@@ -185,6 +186,13 @@ export const postByIdAccept: RestAPI<InviteInfo, { id: string }> = async (req, r
   try {
     const invite = await acceptInvite(req.params.id, user, new Date());
     io.to(`user:${invite.inviterUsername}`).emit("inviteStatusUpdated", invite);
+
+    // Notify all game watchers so the host's player list (and Start Game button) updates
+    const updatedGame = await getGameById(invite.roomId);
+    if (updatedGame) {
+      io.to(invite.roomId).emit("gamePlayersUpdated", updatedGame.players);
+    }
+
     res.send(invite);
   } catch (err) {
     sendInviteError(res, err instanceof Error ? err.message : "Unexpected invite error");
