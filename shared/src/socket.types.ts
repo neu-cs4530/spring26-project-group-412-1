@@ -10,6 +10,16 @@ import { type NewMessagePayload, type ToggleMessageReactionPayload } from "./mes
 import { type WithAuth } from "./auth.types.ts";
 import { type GameMakeMovePayload, type GamePlayInfo, type TaggedGameView } from "./game.types.ts";
 import { type SafeUserInfo } from "./user.types.ts";
+import { type MessageInfo } from "./message.types.ts";
+
+/**
+ * Relevant information for informing the client that a message's reactions changed
+ */
+export interface ChatReactionUpdatedPayload {
+  chatId: string;
+  messageId: string;
+  updatedMessage: MessageInfo;
+}
 
 /**
  * The Socket.io interface for client to server communication

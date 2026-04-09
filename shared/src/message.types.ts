@@ -16,6 +16,7 @@ export interface MessageReactionInfo {
  * - `text`: message contents
  * - `createdBy`: message sender
  * - `createdAt`: when the message was sent
+ * - `reactions`: emoji reactions on this message
  */
 export interface MessageInfo {
   messageId: string;
