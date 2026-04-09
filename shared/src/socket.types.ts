@@ -6,11 +6,14 @@ import {
   type ChatUserJoinedPayload,
   type ChatUserLeftPayload,
 } from "./chat.types.ts";
-import { type NewMessagePayload, type ToggleMessageReactionPayload, type BoardReactionPayload} from "./message.types.ts";
+import {
+  type NewMessagePayload,
+  type ToggleMessageReactionPayload,
+  type BoardReactionPayload,
+} from "./message.types.ts";
 import { type WithAuth } from "./auth.types.ts";
 import { type GameMakeMovePayload, type GamePlayInfo, type TaggedGameView } from "./game.types.ts";
 import { type SafeUserInfo } from "./user.types.ts";
-
 
 /**
  * The Socket.io interface for client to server communication
