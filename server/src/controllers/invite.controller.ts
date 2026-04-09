@@ -60,7 +60,7 @@ function sendInviteError<R>(res: Response<R | { error: string }>, message: strin
  */
 export const socketRegisterUser = (socket: GameServerSocket) => async (body: unknown) => {
   try {
-    const { auth } = withAuth(z.record(z.never())).parse(body);
+    const { auth } = withAuth(z.object({}).strict()).parse(body);
     const user = await checkAuth(auth);
     if (!user) return;
     await socket.join(`user:${user.username}`);
@@ -183,7 +183,9 @@ export const postByIdAccept: RestAPI<InviteInfo, { id: string }> = async (req, r
   }
 
   try {
-    res.send(await acceptInvite(req.params.id, user, new Date()));
+    const invite = await acceptInvite(req.params.id, user, new Date());
+    io.to(`user:${invite.inviterUsername}`).emit("inviteStatusUpdated", invite);
+    res.send(invite);
   } catch (err) {
     sendInviteError(res, err instanceof Error ? err.message : "Unexpected invite error");
   }
@@ -207,7 +209,9 @@ export const postByIdDecline: RestAPI<InviteInfo, { id: string }> = async (req, 
   }
 
   try {
-    res.send(await declineInvite(req.params.id, user, new Date()));
+    const invite = await declineInvite(req.params.id, user, new Date());
+    io.to(`user:${invite.inviterUsername}`).emit("inviteStatusUpdated", invite);
+    res.send(invite);
   } catch (err) {
     sendInviteError(res, err instanceof Error ? err.message : "Unexpected invite error");
   }
@@ -231,7 +235,9 @@ export const postByIdCancel: RestAPI<InviteInfo, { id: string }> = async (req, r
   }
 
   try {
-    res.send(await cancelInvite(req.params.id, user, new Date()));
+    const invite = await cancelInvite(req.params.id, user, new Date());
+    io.to(`user:${invite.inviteeUsername}`).emit("inviteStatusUpdated", invite);
+    res.send(invite);
   } catch (err) {
     sendInviteError(res, err instanceof Error ? err.message : "Unexpected invite error");
   }
