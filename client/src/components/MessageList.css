@@ -39,10 +39,20 @@ div.chatScroller .chatMe .chatSender {
   text-align: right;
 }
 
+/* Wraps the react button + the message bubble side by side */
+div.chatScroller .chatBubbleRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+div.chatScroller .chatMe .chatBubbleRow {
+  flex-direction: row-reverse;
+}
+
 div.chatScroller .chatContent {
   width: 75%;
   max-width: max-content;
-  margin-right: auto;
   padding-block: 0.5rem;
   padding-inline: 0.75rem;
   border-radius: 0.5rem;
@@ -50,8 +60,6 @@ div.chatScroller .chatContent {
 }
 
 div.chatScroller .chatMe .chatContent {
-  margin-right: 0;
-  margin-left: auto;
   background-color: oklch(0.9 0.05 260);
 }
 

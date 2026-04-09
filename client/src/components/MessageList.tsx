@@ -27,6 +27,7 @@ export default function MessageList({ messages, handleToggleReaction }: MessageL
   const chatWindowRef = useRef<HTMLDivElement | null>(null);
   const timeSince = useTimeSince();
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!chatWindowRef.current) return;
     chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;

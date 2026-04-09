@@ -9,7 +9,8 @@ interface ChatProps {
 }
 
 /**
- * A chat panel allows viewing and updating messages in live chat
+ * A chat panel allows viewing and updating messages in live chat,
+ * including sending emoji reactions to messages.
  */
 export default function ChatPanel({ chatId }: ChatProps) {
   const { messages, handleMessageCreation, handleToggleReaction, activeReactionBursts } =

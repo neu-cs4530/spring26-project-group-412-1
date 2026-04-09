@@ -15,9 +15,6 @@ const REACTION_BURST_LIFETIME_MS = 3_000;
 /** Extract the timestamp from any ChatMessage variant */
 function messageTime(msg: ChatMessage): number {
   const date = "createdAt" in msg ? msg.createdAt : msg.dateTime;
-  // TypeScript claims `date` is type `Date`, but this isn't always accurate:
-  // `createdAt` times that are sent via JSON are turned into strings. Here
-  // we use a slightly hacky fix to ensure we'll get a correct date.
   if (typeof date === "string") return new Date(date).getTime();
   return date.getTime();
 }
@@ -48,9 +45,8 @@ function mergeByTime(a: ChatMessage[], b: ChatMessage[]): ChatMessage[] {
  * - `messages`: The current list of messages in the chat, including
  *   move log entries interleaved chronologically.
  * - `handleMessageCreation`: Sends a new message to the chat
- */
-
-export default function useSocketsForChat(chatId: string) {
+ * - `handleReaction`: Sends a reaction to a specific message
+ */ export default function useSocketsForChat(chatId: string) {
   const auth = useAuth();
   const { user, socket } = useLoginContext();
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
@@ -64,8 +60,6 @@ export default function useSocketsForChat(chatId: string) {
       if (chat.chatId !== chatId) return;
       socket.off("chatJoined", handleChatJoined);
 
-      // Build the initial message list by merging stored messages and
-      // persisted move log entries chronologically (both are already sorted)
       const chatMessages: ChatMessage[] = chat.messages;
       const moveLogMessages: ChatMessage[] = chat.moveLog.map((entry, index) => ({
         messageId: `movelog-init-${index}`,
