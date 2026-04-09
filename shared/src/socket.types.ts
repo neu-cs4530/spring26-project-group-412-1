@@ -2,23 +2,14 @@ import {
   type ChatInfo,
   type ChatMoveLogPayload,
   type ChatNewMessagePayload,
-  type ChatReactionUpdatedPayload,
   type ChatUserJoinedPayload,
   type ChatUserLeftPayload,
 } from "./chat.types.ts";
-import { type NewMessagePayload, type ToggleMessageReactionPayload, type BoardReactionPayload, type MessageInfo } from "./message.types.ts";
+import { type NewMessagePayload, type ToggleMessageReactionPayload, type BoardReactionPayload} from "./message.types.ts";
 import { type WithAuth } from "./auth.types.ts";
 import { type GameMakeMovePayload, type GamePlayInfo, type TaggedGameView } from "./game.types.ts";
 import { type SafeUserInfo } from "./user.types.ts";
 
-/**
- * Relevant information for informing the client that a message's reactions changed
- */
-export interface ChatReactionUpdatedPayload {
-  chatId: string;
-  messageId: string;
-  updatedMessage: MessageInfo;
-}
 
 /**
  * The Socket.io interface for client to server communication
@@ -42,7 +33,6 @@ export interface ServerToClientEvents {
   chatJoined: (payload: ChatInfo) => void;
   chatMoveLog: (payload: ChatMoveLogPayload) => void;
   chatNewMessage: (payload: ChatNewMessagePayload) => void;
-  chatReactionUpdated: (payload: ChatReactionUpdatedPayload) => void;
   gameBoardReactionBroadcast: (payload: { username: string; emoji: string }) => void;
   chatUserJoined: (payload: ChatUserJoinedPayload) => void;
   chatUserLeft: (payload: ChatUserLeftPayload) => void;
