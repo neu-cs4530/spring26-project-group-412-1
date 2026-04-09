@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type {
   MonopolyGameState,
   MonopolyMove,
@@ -12,6 +12,15 @@ import type { GameProps } from "../util/types.ts";
 import MonopolyPropertyCard from "./MonopolyPropertyCard.tsx";
 import { Car, Ship, ChessKnight, Dices } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import useLoginContext from "../hooks/useLoginContext.ts";
+import useAuth from "../hooks/useAuth.ts";
+
+const BOARD_REACTION_DURATION_MS = 3000;
+const AVAILABLE_EMOJIS = ["👍", "😂", "😮", "😢", "😡", "🎉"];
+
+interface MonopolyGameProps extends GameProps<MonopolyGameState, MonopolyMove> {
+  chatId?: string;
+}
 
 function playerLabel(players: SafeUserInfo[], playerIndex: number): string {
   return players[playerIndex]?.display ?? `P${playerIndex + 1}`;
@@ -177,8 +186,51 @@ export default function MonopolyGame({
   players,
   userPlayerIndex,
   makeMove,
-}: GameProps<MonopolyGameState, MonopolyMove>) {
+  chatId,
+}: MonopolyGameProps) {
   const [showDeck, setShowDeck] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const { socket } = useLoginContext();
+  const auth = useAuth();
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  const [boardReactions, setBoardReactions] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const handleBoardReaction = (payload: { username: string; emoji: string }) => {
+      const { username, emoji } = payload;
+      setBoardReactions((prev) => ({ ...prev, [username]: emoji }));
+      setTimeout(() => {
+        setBoardReactions((prev) => {
+          const next = { ...prev };
+          if (next[username] === emoji) delete next[username];
+          return next;
+        });
+      }, BOARD_REACTION_DURATION_MS);
+    };
+
+    socket.on("gameBoardReactionBroadcast", handleBoardReaction);
+    return () => {
+      socket.off("gameBoardReactionBroadcast", handleBoardReaction);
+    };
+  }, [socket]);
+
+  useEffect(() => {
+    if (!showReactionPicker) return;
+    const close = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowReactionPicker(false);
+      }
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [showReactionPicker]);
+
+  function sendBoardReaction(emoji: string) {
+    if (!chatId) return;
+    socket.emit("gameBoardReaction", { auth, payload: { chatId, emoji } });
+    setShowReactionPicker(false);
+  }
 
   const ownableSpaces = view.board.filter(
     (space): space is OwnableSpace =>
@@ -414,6 +466,50 @@ export default function MonopolyGame({
               </div>
             </div>
           )}
+          {chatId && (
+            <div ref={pickerRef} style={{ position: "relative" }}>
+              <button
+                className="secondary narrow"
+                onClick={() => setShowReactionPicker((prev) => !prev)}
+              >
+                React 😊
+              </button>
+              {showReactionPicker && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 4px)",
+                    left: 0,
+                    display: "flex",
+                    gap: "0.25rem",
+                    background: "white",
+                    border: "1px solid oklch(0.85 0 0)",
+                    borderRadius: "0.5rem",
+                    padding: "0.3rem 0.4rem",
+                    boxShadow: "0 4px 12px oklch(0 0 0 / 0.12)",
+                    zIndex: 10,
+                  }}
+                >
+                  {AVAILABLE_EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => sendBoardReaction(emoji)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: "1.2rem",
+                        borderRadius: "0.25rem",
+                        padding: "0.1rem 0.15rem",
+                      }}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -443,6 +539,7 @@ export default function MonopolyGame({
         diceRoll={view.diceRoll}
         selectedSpaceId={selectedSpace?.spaceId}
         onSelectSpace={(spaceId) => setSelectedSpaceId(spaceId)}
+        boardReactions={boardReactions}
       />
 
       {selectedSpace && (

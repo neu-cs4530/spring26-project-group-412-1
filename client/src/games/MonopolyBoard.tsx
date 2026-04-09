@@ -24,6 +24,7 @@ interface MonopolyBoardProps {
   diceRoll?: [number, number];
   selectedSpaceId?: number;
   onSelectSpace?: (spaceId: number) => void;
+  boardReactions: Record<string, string>;
 }
 
 const PLAYER_PIECES: LucideIcon[] = [Car, Ship, ChessKnight, Dices];
@@ -38,7 +39,6 @@ function getOwnerLabel(space: BoardSpace, userInfos: SafeUserInfo[]) {
   if (!("ownerIndex" in space) || space.ownerIndex === undefined) {
     return undefined;
   }
-
   return userInfos[space.ownerIndex]?.display ?? `P${space.ownerIndex + 1}`;
 }
 
@@ -53,6 +53,7 @@ function SpaceTile({
   currentPlayerIndex,
   isSelected,
   onSelect,
+  boardReactions,
 }: {
   space: BoardSpace;
   playersHere: Array<{ player: MonopolyPlayer; index: number }>;
@@ -60,6 +61,7 @@ function SpaceTile({
   currentPlayerIndex: number;
   isSelected: boolean;
   onSelect?: () => void;
+  boardReactions: Record<string, string>;
 }) {
   const color = space.type === "property" ? space.colorGroup : undefined;
   const ownerLabel = getOwnerLabel(space, userInfos);
@@ -138,14 +140,7 @@ function SpaceTile({
         </div>
 
         {"price" in space && (
-          <div
-            style={{
-              fontSize: "0.5rem",
-              textAlign: "center",
-            }}
-          >
-            ${space.price}
-          </div>
+          <div style={{ fontSize: "0.5rem", textAlign: "center" }}>${space.price}</div>
         )}
 
         {(houseCount > 0 || hotelCount > 0) && (
@@ -205,25 +200,48 @@ function SpaceTile({
           {playersHere.map(({ index }) => {
             const pieceIcon = PLAYER_PIECES[index % PLAYER_PIECES.length];
             const playerLabel = getPlayerLabel(index, userInfos);
+            const username = userInfos[index]?.username;
+            const boardEmoji = username ? boardReactions[username] : undefined;
+
             return (
               <span
                 key={`${space.spaceId}-${index}`}
-                aria-label={`Player token: ${playerLabel}`}
-                title={playerLabel}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "1rem",
-                  height: "1rem",
-                  borderRadius: "999px",
-                  backgroundColor: index === currentPlayerIndex ? "blue" : "grey",
-                  color: "white",
-                  fontSize: "0.5rem",
-                  fontWeight: 700,
-                }}
+                style={{ position: "relative", display: "inline-flex" }}
               >
-                {React.createElement(pieceIcon, { size: 12, strokeWidth: 2.25 })}
+                {/* Emoji overlay — disappears after timeout set in MonopolyGame */}
+                {boardEmoji && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      bottom: "100%",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      fontSize: "0.9rem",
+                      pointerEvents: "none",
+                      animation: "boardReactionPop 0.2s ease-out",
+                    }}
+                  >
+                    {boardEmoji}
+                  </span>
+                )}
+                <span
+                  aria-label={`Player token: ${playerLabel}`}
+                  title={playerLabel}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "1rem",
+                    height: "1rem",
+                    borderRadius: "999px",
+                    backgroundColor: index === currentPlayerIndex ? "blue" : "grey",
+                    color: "white",
+                    fontSize: "0.5rem",
+                    fontWeight: 700,
+                  }}
+                >
+                  {React.createElement(pieceIcon, { size: 12, strokeWidth: 2.25 })}
+                </span>
               </span>
             );
           })}
@@ -271,8 +289,10 @@ export default function MonopolyBoard({
   diceRoll,
   selectedSpaceId,
   onSelectSpace,
+  boardReactions,
 }: MonopolyBoardProps) {
   const boardById = new Map(board.map((space) => [space.spaceId, space]));
+
   const renderSpace = (spaceId: number, gridColumn: number, gridRow: number) => {
     const space = boardById.get(spaceId);
 
@@ -313,6 +333,7 @@ export default function MonopolyBoard({
           currentPlayerIndex={currentPlayerIndex}
           isSelected={selectedSpaceId === space.spaceId}
           onSelect={onSelectSpace ? () => onSelectSpace(space.spaceId) : undefined}
+          boardReactions={boardReactions}
         />
       </div>
     );
@@ -320,6 +341,12 @@ export default function MonopolyBoard({
 
   return (
     <div className="spacedSection">
+      <style>{`
+        @keyframes boardReactionPop {
+          from { transform: translateX(-50%) scale(0.5); opacity: 0; }
+          to   { transform: translateX(-50%) scale(1);   opacity: 1; }
+        }
+      `}</style>
       <div
         style={{
           width: "min(600px, 95vw)",

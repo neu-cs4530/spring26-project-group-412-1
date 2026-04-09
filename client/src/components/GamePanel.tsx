@@ -16,6 +16,7 @@ export default function GamePanel({
   players: initialPlayers,
   createdAt,
   minPlayers,
+  chat,
 }: GameInfo) {
   const { user } = useLoginContext();
   const timeSince = useTimeSince();
@@ -43,22 +44,16 @@ export default function GamePanel({
             </div>
           ))}
         </div>
-        {
-          // If the game hasn't started and user hasn't joined, they can join
-          userPlayerIndex < 0 && !view && (
-            <button className="primary narrow" onClick={joinGame}>
-              Join Game
-            </button>
-          )
-        }
-        {
-          // If the game hasn't started and the user has joined, they can start the game if a minimum number of players are present
-          userPlayerIndex >= 0 && !view && players.length >= minPlayers && (
-            <button className="primary narrow" onClick={startGame}>
-              Start Game
-            </button>
-          )
-        }
+        {userPlayerIndex < 0 && !view && (
+          <button className="primary narrow" onClick={joinGame}>
+            Join Game
+          </button>
+        )}
+        {userPlayerIndex >= 0 && !view && players.length >= minPlayers && (
+          <button className="primary narrow" onClick={startGame}>
+            Start Game
+          </button>
+        )}
       </div>
       {view ? (
         <div className="gameFrame">
@@ -67,6 +62,7 @@ export default function GamePanel({
             userPlayerIndex={userPlayerIndex}
             players={players}
             view={view}
+            chatId={chat}
           />
         </div>
       ) : (

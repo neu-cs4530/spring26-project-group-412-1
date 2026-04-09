@@ -11,6 +11,7 @@ interface GameDispatchProps {
   players: SafeUserInfo[];
   gameId: string;
   view: TaggedGameView;
+  chatId?: string;
 }
 
 export default function GameDispatch({
@@ -18,6 +19,7 @@ export default function GameDispatch({
   gameId,
   players,
   view,
+  chatId,
 }: GameDispatchProps): JSX.Element {
   const { socket } = useLoginContext();
   const auth = useAuth();
@@ -33,6 +35,6 @@ export default function GameDispatch({
     case "guess":
       return <GuessGame {...{ ...childProps, view: view.view }} />;
     case "monopoly":
-      return <MonopolyGame {...{ ...childProps, view: view.view }} />;
+      return <MonopolyGame {...{ ...childProps, view: view.view, chatId }} />;
   }
 }

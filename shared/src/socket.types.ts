@@ -6,11 +6,10 @@ import {
   type ChatUserJoinedPayload,
   type ChatUserLeftPayload,
 } from "./chat.types.ts";
-import { type NewMessagePayload, type ToggleMessageReactionPayload, type BoardReactionPayload } from "./message.types.ts";
+import { type NewMessagePayload, type ToggleMessageReactionPayload, type BoardReactionPayload, type MessageInfo } from "./message.types.ts";
 import { type WithAuth } from "./auth.types.ts";
 import { type GameMakeMovePayload, type GamePlayInfo, type TaggedGameView } from "./game.types.ts";
 import { type SafeUserInfo } from "./user.types.ts";
-import { type MessageInfo } from "./message.types.ts";
 
 /**
  * Relevant information for informing the client that a message's reactions changed
