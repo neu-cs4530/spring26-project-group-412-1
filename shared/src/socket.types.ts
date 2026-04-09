@@ -2,6 +2,7 @@ import {
   type ChatInfo,
   type ChatMoveLogPayload,
   type ChatNewMessagePayload,
+  type ChatReactionUpdatedPayload,
   type ChatUserJoinedPayload,
   type ChatUserLeftPayload,
 } from "./chat.types.ts";
@@ -33,6 +34,7 @@ export interface ServerToClientEvents {
   chatJoined: (payload: ChatInfo) => void;
   chatMoveLog: (payload: ChatMoveLogPayload) => void;
   chatNewMessage: (payload: ChatNewMessagePayload) => void;
+  chatReactionUpdated: (payload: ChatReactionUpdatedPayload) => void;
   gameBoardReactionBroadcast: (payload: { username: string; emoji: string }) => void;
   chatUserJoined: (payload: ChatUserJoinedPayload) => void;
   chatUserLeft: (payload: ChatUserLeftPayload) => void;
