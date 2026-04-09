@@ -134,7 +134,7 @@ export async function toggleMessageReaction(
 }
 
 /**
- * Retrieves a list of message ids from the database
+ * Retrieves a list of message ids from the database.
  *
  * @param ids - A list of valid message ids
  * @returns the MessageInfo objects corresponding to those ids
@@ -143,3 +143,4 @@ export async function toggleMessageReaction(
 export async function getMessagesById(ids: string[]): Promise<MessageInfo[]> {
   return Promise.all(ids.map(populateMessageInfo));
 }
+

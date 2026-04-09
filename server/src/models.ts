@@ -89,11 +89,17 @@ export interface GameRecord {
   createdBy: RecordId; // References User records
 }
 
+export interface StoredReaction {
+  emoji: string;
+  username: string;
+}
+
 /**
  * Represents a message in the database.
  * - `text`: message contents
  * - `createdBy`: username of message sender
  * - `createdAt`: when the message was sent
+ * - `reactions`: emoji reactions on this message
  */
 export interface MessageRecord {
   text: string;

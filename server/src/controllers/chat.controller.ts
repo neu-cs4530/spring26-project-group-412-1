@@ -9,8 +9,7 @@ import { enforceAuth } from "../services/auth.service.ts";
 
 /**
  * Handle a socket request to join a chat: send the connection the chat's
- * current contents and  signal to everyone in the chat that the user has
- * joined
+ * current contents and signal to everyone in the chat that the user has joined.
  */
 export const socketJoin: SocketAPI = (socket) => async (body) => {
   try {
@@ -18,12 +17,7 @@ export const socketJoin: SocketAPI = (socket) => async (body) => {
     const user = await enforceAuth(auth);
     const chat = await forceChatById(chatId, user);
     await socket.join(chatId);
-
-    // Send a "successfully joined" message to the person who just joined
     socket.emit("chatJoined", chat);
-
-    // Send a "user successfully joined" message to everyone else (does not go
-    // to newly-joined user)
     socket
       .to(chatId)
       .emit("chatUserJoined", { chatId, user: await populateSafeUserInfo(user.userId) });
@@ -53,8 +47,8 @@ export const socketLeave: SocketAPI = (socket) => async (body) => {
 };
 
 /**
- * Handle a socket request to send a message to the chat: store the chat and
- * let everyone know about the new message.
+ * Handle a socket request to send a message to the chat: store the message and
+ * let everyone know about it.
  */
 export const socketSendMessage: SocketAPI = (socket, io) => async (body) => {
   try {
@@ -66,8 +60,6 @@ export const socketSendMessage: SocketAPI = (socket, io) => async (body) => {
     const now = new Date();
     const message = await createMessage(user, text, now);
     await addMessageToChat(chatId, user, message.messageId);
-
-    // Send the message to everyone, including the sender
     io.to(chatId).emit("chatNewMessage", { chatId, message });
   } catch (err) {
     logSocketError(socket, err);

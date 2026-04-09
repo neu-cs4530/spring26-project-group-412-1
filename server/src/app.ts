@@ -23,7 +23,7 @@ app.use(
     .use(
       "/game",
       express
-        .Router() //
+        .Router()
         .post("/create", game.postCreate)
         .get("/list", game.getList)
         .get("/:id", game.getById),
@@ -31,7 +31,7 @@ app.use(
     .use(
       "/invite",
       express
-        .Router() //
+        .Router()
         .get("/list", invite.getList)
         .post("/create", invite.postCreate)
         .post("/send", invite.postSend)
@@ -44,7 +44,7 @@ app.use(
     .use(
       "/thread",
       express
-        .Router() //
+        .Router()
         .post("/create", thread.postCreate)
         .get("/list", thread.getList)
         .get("/:id", thread.getById)
@@ -52,7 +52,7 @@ app.use(
     )
     .use(
       "/user",
-      Router() // Any concrete routes here should be disallowed as usernames
+      Router()
         .post("/list", user.postList)
         .post("/login", user.postLogin)
         .post("/signup", user.postSignup)
