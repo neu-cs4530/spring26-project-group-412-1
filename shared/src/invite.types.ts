@@ -21,6 +21,7 @@ export const zInviteGameType = z.literal("monopoly");
 
 /**
  * Invite shape exposed through the API.
+ * - `inviterUsername`: display name of the user who sent the invite
  */
 export interface InviteInfo {
   inviteId: string;
@@ -28,6 +29,7 @@ export interface InviteInfo {
   gameType: InviteGameType;
   inviterId: string;
   inviteeId: string;
+  inviterUsername: string;
   status: InviteStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -41,6 +43,7 @@ export const zInviteInfo = z.object({
   gameType: zInviteGameType,
   inviterId: z.string(),
   inviteeId: z.string(),
+  inviterUsername: z.string(),
   status: zInviteStatus,
   createdAt: z.date(),
   updatedAt: z.date(),
