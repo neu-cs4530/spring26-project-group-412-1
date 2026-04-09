@@ -515,9 +515,7 @@ export default function MonopolyGame({
               </div>
             </div>
           )}
-          {chatId && (
-            <BoardReactionButton chatId={chatId} setBoardReactions={setBoardReactions} />
-          )}
+          {chatId && <BoardReactionButton chatId={chatId} setBoardReactions={setBoardReactions} />}
         </div>
       )}
 
