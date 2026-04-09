@@ -1,18 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useContext, useState } from "react";
 import useThreadList from "../hooks/useThreadList.ts";
 import ThreadSummaryView from "../components/ThreadSummaryView.tsx";
 import { useNavigate } from "react-router-dom";
 import useGameList from "../hooks/useGameList.ts";
 import GameSummaryView from "../components/GameSummaryView.tsx";
 import useAuth from "../hooks/useAuth.ts";
-import type { InviteInfo } from "@gamenite/shared";
-import {
-  acceptInviteRequest,
-  declineInviteRequest,
-  getMineInvites,
-} from "../services/inviteService.ts";
-
-const INVITE_POLL_INTERVAL_MS = 15_000;
+import { InviteContext } from "../contexts/InviteContext.ts";
+import { acceptInviteRequest, declineInviteRequest } from "../services/inviteService.ts";
 
 export default function Home() {
   const threadList = useThreadList(4);
@@ -20,47 +14,9 @@ export default function Home() {
   const navigate = useNavigate();
   const auth = useAuth();
 
-  const [invites, setInvites] = useState<InviteInfo[]>([]);
+  const { invites, refreshInvites } = useContext(InviteContext);
   const [inviteErr, setInviteErr] = useState<string | null>(null);
-  const [loadingInvites, setLoadingInvites] = useState(true);
   const [inviteActionId, setInviteActionId] = useState<string | null>(null);
-  const mountedRef = useRef(true);
-
-  const refreshInvites = useCallback(async () => {
-    const response = await getMineInvites(auth, false);
-
-    if (!mountedRef.current) return;
-
-    if ("error" in response) {
-      setInviteErr(response.error);
-      setInvites([]);
-    } else {
-      setInviteErr(null);
-      setInvites(response);
-    }
-
-    setLoadingInvites(false);
-  }, [auth]);
-
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const initialLoadTimer = window.setTimeout(() => {
-      void refreshInvites();
-    }, 0);
-    const pollTimer = window.setInterval(() => {
-      void refreshInvites();
-    }, INVITE_POLL_INTERVAL_MS);
-
-    return () => {
-      window.clearTimeout(initialLoadTimer);
-      window.clearInterval(pollTimer);
-    };
-  }, [refreshInvites]);
 
   const handleAccept = async (inviteId: string) => {
     setInviteActionId(inviteId);
@@ -68,17 +24,12 @@ export default function Home() {
     const response = await acceptInviteRequest(auth, inviteId);
     if ("error" in response) {
       await refreshInvites();
-      if (mountedRef.current) {
-        setInviteErr(response.error);
-        setInviteActionId(null);
-      }
+      setInviteErr(response.error);
+      setInviteActionId(null);
       return;
     }
-
     await refreshInvites();
-    if (mountedRef.current) {
-      setInviteActionId(null);
-    }
+    setInviteActionId(null);
     navigate(`/game/${response.roomId}`);
   };
 
@@ -88,41 +39,36 @@ export default function Home() {
     const response = await declineInviteRequest(auth, inviteId);
     if ("error" in response) {
       await refreshInvites();
-      if (mountedRef.current) {
-        setInviteErr(response.error);
-        setInviteActionId(null);
-      }
+      setInviteErr(response.error);
+      setInviteActionId(null);
       return;
     }
-
     await refreshInvites();
-    if (mountedRef.current) {
-      setInviteActionId(null);
-    }
+    setInviteActionId(null);
   };
 
   return (
     <div className="content">
       <div className="spacedSection">
         <h2>Pending invites</h2>
-        {loadingInvites ? (
-          <div>Loading invites...</div>
-        ) : inviteErr ? (
-          <div>{inviteErr}</div>
-        ) : invites.length === 0 ? (
+        {inviteErr && <div className="error-message">{inviteErr}</div>}
+        {invites.length === 0 ? (
           <div>No pending invites</div>
         ) : (
           <div className="dottedList">
             {invites.map((invite) => (
               <div key={invite.inviteId} className="spacedSection">
                 <div>
-                  <strong>Inviter:</strong> {invite.inviterId}
+                  <strong>From:</strong> {invite.inviterUsername}
                 </div>
                 <div>
-                  <strong>Room:</strong> {invite.roomId}
+                  <strong>Game:</strong> {invite.gameType}
                 </div>
                 <div>
                   <strong>Sent:</strong> {invite.createdAt.toLocaleString()}
+                </div>
+                <div>
+                  <strong>Expires:</strong> {invite.expiresAt.toLocaleString()}
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
                   <button

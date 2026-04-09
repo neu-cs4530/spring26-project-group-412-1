@@ -2,6 +2,7 @@ import { type JSX, useMemo } from "react";
 import { type AuthContext, LoginContext } from "../contexts/LoginContext.ts";
 import { type GameSocket } from "../util/types.ts";
 import { Navigate } from "react-router-dom";
+import InviteProvider from "./InviteProvider.tsx";
 
 interface LoggedInRouteParams {
   auth: AuthContext | null;
@@ -26,7 +27,9 @@ export default function LoggedInRoute({ auth, socket, children }: LoggedInRouteP
   // arrays will change every time the app updates.
   const context = useMemo(() => (auth && socket ? { ...auth, socket } : null), [auth, socket]);
   return context ? (
-    <LoginContext.Provider value={context}>{children}</LoginContext.Provider>
+    <LoginContext.Provider value={context}>
+      <InviteProvider>{children}</InviteProvider>
+    </LoginContext.Provider>
   ) : (
     <Navigate to="/login" />
   );

@@ -10,6 +10,7 @@ const {
   mockGetMineInvites,
   mockAcceptInviteRequest,
   mockDeclineInviteRequest,
+  mockSocket,
 } = vi.hoisted(() => ({
   mockUseNavigate: vi.fn(),
   mockUseThreadList: vi.fn(),
@@ -18,6 +19,7 @@ const {
   mockGetMineInvites: vi.fn(),
   mockAcceptInviteRequest: vi.fn(),
   mockDeclineInviteRequest: vi.fn(),
+  mockSocket: { on: vi.fn(), off: vi.fn(), emit: vi.fn() },
 }));
 
 vi.mock("react-router-dom", async () => {
@@ -37,6 +39,10 @@ vi.mock("../../src/hooks/useAuth.ts", () => ({
   default: mockUseAuth,
 }));
 
+vi.mock("../../src/hooks/useLoginContext.ts", () => ({
+  default: () => ({ socket: mockSocket, user: { username: "user2", display: "User Two" } }),
+}));
+
 vi.mock("../../src/services/inviteService.ts", () => ({
   getMineInvites: mockGetMineInvites,
   acceptInviteRequest: mockAcceptInviteRequest,
@@ -44,6 +50,15 @@ vi.mock("../../src/services/inviteService.ts", () => ({
 }));
 
 import Home from "../../src/pages/Home.tsx";
+import InviteProvider from "../../src/components/InviteProvider.tsx";
+
+function renderHome() {
+  return render(
+    <InviteProvider>
+      <Home />
+    </InviteProvider>,
+  );
+}
 
 const auth: UserAuth = { username: "user2", password: "pwd2222" };
 
@@ -54,7 +69,9 @@ function pendingInvite(inviteId: string): InviteInfo {
     roomId: "room-1",
     gameType: "monopoly",
     inviterId: "host-id",
+    inviterUsername: "host",
     inviteeId: "invitee-id",
+    inviteeUsername: "user2",
     status: "pending",
     createdAt: now,
     updatedAt: now,
@@ -82,7 +99,7 @@ describe("Home invites behavior", () => {
     const clearIntervalSpy = vi.spyOn(window, "clearInterval");
     mockGetMineInvites.mockResolvedValue([pendingInvite("invite-1")]);
 
-    const { unmount } = render(<Home />);
+    const { unmount } = renderHome();
 
     await waitFor(() => {
       expect(mockGetMineInvites).toHaveBeenCalledTimes(1);
@@ -90,7 +107,7 @@ describe("Home invites behavior", () => {
 
     expect(setIntervalSpy).toHaveBeenCalled();
     const [pollCallback, intervalMs] = setIntervalSpy.mock.calls[0];
-    expect(intervalMs).toBe(15_000);
+    expect(intervalMs).toBe(60_000);
     if (typeof pollCallback === "function") {
       const pollFn = pollCallback as unknown as () => void | Promise<void>;
       await act(async () => {
@@ -118,7 +135,7 @@ describe("Home invites behavior", () => {
       status: "accepted",
     });
 
-    render(<Home />);
+    renderHome();
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Accept" })).not.toBeNull();
@@ -144,7 +161,7 @@ describe("Home invites behavior", () => {
       status: "declined",
     });
 
-    render(<Home />);
+    renderHome();
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Decline" })).not.toBeNull();
@@ -167,7 +184,7 @@ describe("Home invites behavior", () => {
       .mockResolvedValueOnce([]);
     mockAcceptInviteRequest.mockResolvedValue({ error: "Invite is expired" });
 
-    render(<Home />);
+    renderHome();
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Accept" })).not.toBeNull();

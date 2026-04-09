@@ -1,16 +1,18 @@
 import "./SideBarNav.css";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { NavLink, type NavLinkRenderProps } from "react-router-dom";
 import useAuth from "../hooks/useAuth.ts";
+import { InviteContext } from "../contexts/InviteContext.ts";
 
 /**
- * The SideBarNav component contains the primary naviagation menu. It
+ * The SideBarNav component contains the primary navigation menu. It
  * highlights the currently selected page and triggers navigation when the
  * menu items are clicked.
  */
 export default function SideBarNav() {
   const [showOptions, setShowOptions] = useState<boolean>(false);
   const { username } = useAuth();
+  const { pendingCount } = useContext(InviteContext);
 
   const toggleOptions = () => {
     setShowOptions(!showOptions);
@@ -22,7 +24,10 @@ export default function SideBarNav() {
   return (
     <div className="sideBarNav">
       <NavLink to="/" className={navClass}>
-        Home
+        <span className="navLinkInner">
+          Home
+          {pendingCount > 0 && <span className="inviteBadge">{pendingCount}</span>}
+        </span>
       </NavLink>
       <NavLink to="/games" className={navClass}>
         Games
