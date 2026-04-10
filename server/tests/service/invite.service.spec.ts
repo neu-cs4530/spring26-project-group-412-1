@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { enforceAuth } from "../../src/services/auth.service.ts";
-import { GameRepo, InvitePendingByRoomInviteeRepo } from "../../src/repository.ts";
+import { GameRepo, InvitePendingByRoomInviteeRepo, InviteRepo } from "../../src/repository.ts";
 import { createGame, getGameById, joinGame, startGame } from "../../src/services/game.service.ts";
 import {
   acceptInvite,
@@ -8,7 +8,126 @@ import {
   createInvite,
   declineInvite,
   getInvitesForInvitee,
+  getInvitesForInviter,
 } from "../../src/services/invite.service.ts";
+
+describe("invite.service - createInvite validations", () => {
+  it("throws Room not found when the room does not exist", async () => {
+    const inviter = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    await expect(createInvite(inviter, "nonexistent-room-id", "user2", now)).rejects.toThrow(
+      "Room not found",
+    );
+  });
+
+  it("throws Invitee not found when the invitee username does not exist", async () => {
+    const inviter = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    const game = await createGame(inviter, "nim", now);
+    await expect(createInvite(inviter, game.gameId, "no-such-user", now)).rejects.toThrow(
+      "Invitee not found",
+    );
+  });
+
+  it("throws when the invitee is already a player in the room", async () => {
+    const inviter = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const invitee = await enforceAuth({ username: "user2", password: "pwd2222" });
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    // guess game has null maxPlayers so the room-full check is skipped
+    const game = await createGame(inviter, "guess", now);
+    await joinGame(game.gameId, invitee);
+    await expect(createInvite(inviter, game.gameId, "user2", now)).rejects.toThrow(
+      "Invitee is already in the room",
+    );
+  });
+
+  it("throws Room is full when the room has reached its maximum player count", async () => {
+    const inviter = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const invitee = await enforceAuth({ username: "user2", password: "pwd2222" });
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    // nim maxPlayers = 2; after host + one joiner the room is full
+    const game = await createGame(inviter, "nim", now);
+    await joinGame(game.gameId, invitee);
+    await expect(createInvite(inviter, game.gameId, "user3", now)).rejects.toThrow("Room is full");
+  });
+
+  it("cleans up an orphaned pending index entry when the invite record is missing", async () => {
+    const inviter = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    const game = await createGame(inviter, "nim", now);
+    const invite = await createInvite(inviter, game.gameId, "user2", now);
+    // Delete the invite record, leaving an orphaned pending index entry
+    await InviteRepo.remove(invite.inviteId);
+    // Creating a new invite should succeed — the orphan is cleaned up
+    const laterNow = new Date(now.getTime() + 10_000);
+    const newInvite = await createInvite(inviter, game.gameId, "user2", laterNow);
+    expect(newInvite.inviteId).not.toBe(invite.inviteId);
+    expect(newInvite.status).toBe("pending");
+  });
+});
+
+describe("invite.service - getInvitesForInviter", () => {
+  it("returns invites sorted descending by creation date (exercises sort comparator)", async () => {
+    const inviter = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const now1 = new Date("2026-01-01T00:00:00.000Z");
+    const now2 = new Date("2026-01-01T01:00:00.000Z");
+    // guess game has null maxPlayers so multiple invites can be sent from the same room
+    const game = await createGame(inviter, "guess", now1);
+    await createInvite(inviter, game.gameId, "user2", now1);
+    await createInvite(inviter, game.gameId, "user3", now2);
+    const sent = await getInvitesForInviter(inviter, now2, true);
+    expect(sent).toHaveLength(2);
+    expect(sent[0].createdAt.getTime()).toBeGreaterThan(sent[1].createdAt.getTime());
+  });
+});
+
+describe("invite.service - acceptInvite / declineInvite validations", () => {
+  it("throws when accepting an invite that has already expired", async () => {
+    const inviter = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const invitee = await enforceAuth({ username: "user2", password: "pwd2222" });
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    // invite TTL is 5 minutes; pass a time 6 minutes later to trigger expiry
+    const afterExpiry = new Date(now.getTime() + 6 * 60 * 1000);
+    const game = await createGame(inviter, "nim", now);
+    const invite = await createInvite(inviter, game.gameId, "user2", now);
+    await expect(acceptInvite(invite.inviteId, invitee, afterExpiry)).rejects.toThrow(
+      "Invite is expired",
+    );
+  });
+
+  it("throws Not authorized when a non-invitee tries to decline an invite", async () => {
+    const inviter = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const thirdParty = await enforceAuth({ username: "user3", password: "pwd3333" });
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    const game = await createGame(inviter, "nim", now);
+    const invite = await createInvite(inviter, game.gameId, "user2", now);
+    await expect(declineInvite(invite.inviteId, thirdParty, now)).rejects.toThrow("Not authorized");
+  });
+
+  it("throws Not authorized when a non-invitee tries to accept an invite", async () => {
+    const inviter = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const thirdParty = await enforceAuth({ username: "user3", password: "pwd3333" });
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    const game = await createGame(inviter, "nim", now);
+    const invite = await createInvite(inviter, game.gameId, "user2", now);
+    await expect(acceptInvite(invite.inviteId, thirdParty, now)).rejects.toThrow(
+      "Not authorized to accept this invite",
+    );
+  });
+
+  it("treats already-in-game as a successful accept", async () => {
+    const inviter = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const invitee = await enforceAuth({ username: "user2", password: "pwd2222" });
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    // guess game has null maxPlayers so manually joining doesn't fill the room
+    const game = await createGame(inviter, "guess", now);
+    const invite = await createInvite(inviter, game.gameId, "user2", now);
+    await joinGame(game.gameId, invitee);
+    // acceptInvite catches "joining game they are in already" and returns accepted
+    const accepted = await acceptInvite(invite.inviteId, invitee, now);
+    expect(accepted.status).toBe("accepted");
+  });
+});
 
 function deferred() {
   let resolve!: () => void;
