@@ -1,4 +1,10 @@
-import { type GameInfo, withAuth, zGameKey, zGameMakeMovePayload } from "@gamenite/shared";
+import {
+  type GameInfo,
+  type GameKey,
+  withAuth,
+  zGameKey,
+  zGameMakeMovePayload,
+} from "@gamenite/shared";
 import { type RestAPI, type GameViewUpdates, type SocketAPI, type GameServer } from "../types.ts";
 import {
   createGame,
@@ -15,12 +21,22 @@ import { z } from "zod";
 import { logSocketError } from "./socket.controller.ts";
 import { checkAuth, enforceAuth } from "../services/auth.service.ts";
 
+const zCreateGamePayload = z.union([
+  zGameKey.transform((gameKey): { gameKey: GameKey; startingMoney?: number } => ({
+    gameKey,
+  })),
+  z.object({
+    gameKey: zGameKey,
+    startingMoney: z.number().int().positive().optional(),
+  }),
+]);
+
 /**
  * Handle POST requests to `/api/game/create` by creating a game. The game
  * starts with one player, the user who made the POST request.
  */
 export const postCreate: RestAPI<GameInfo> = async (req, res) => {
-  const body = withAuth(zGameKey).safeParse(req.body);
+  const body = withAuth(zCreateGamePayload).safeParse(req.body);
   if (body.error) {
     res.status(400).send({ error: "Poorly-formed request" });
     return;
@@ -32,7 +48,15 @@ export const postCreate: RestAPI<GameInfo> = async (req, res) => {
     return;
   }
 
-  const game = await createGame(user, body.data.payload, new Date());
+  const { gameKey, startingMoney } = body.data.payload;
+
+  const game = await createGame(
+    user,
+    gameKey,
+    new Date(),
+    gameKey === "monopoly" ? { startingMoney } : undefined,
+  );
+
   res.send(game);
 };
 

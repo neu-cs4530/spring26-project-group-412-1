@@ -87,6 +87,9 @@ export interface GameRecord {
   players: RecordId[]; // References User records
   createdAt: DateISO;
   createdBy: RecordId; // References User records
+  settings?: {
+    startingMoney?: number;
+  };
 }
 
 export interface StoredReaction {
