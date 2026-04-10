@@ -557,6 +557,215 @@ describe("Monopoly property management", () => {
   });
 });
 
+describe("Monopoly jail mechanics - pay_bail and doubles", () => {
+  it("releases a player from jail when they explicitly pay bail", () => {
+    const state = makeState();
+    state.players[0].position = 10;
+    state.players[0].inJail = true;
+
+    const resolved = resolveMonopolyTurn(state, 0, [1, 2], "pay_bail");
+
+    expect(resolved).not.toBeNull();
+    expect(resolved?.players[0]).toMatchObject({ inJail: false, jailTurns: 0, money: 1450 });
+    expect(resolved?.lastTurnEvents).toContainEqual({
+      type: "paid_bail",
+      amount: 50,
+      automatic: false,
+    });
+    expect(resolved?.lastTurnEvents).toContainEqual({ type: "left_jail", method: "paid_bail" });
+  });
+
+  it("releases a player from jail when they roll doubles while in jail", () => {
+    const state = makeState();
+    state.players[0].position = 10;
+    state.players[0].inJail = true;
+
+    const resolved = resolveMonopolyTurn(state, 0, [2, 2]);
+
+    expect(resolved).not.toBeNull();
+    expect(resolved?.players[0]).toMatchObject({ inJail: false, jailTurns: 0 });
+    expect(resolved?.lastTurnEvents).toContainEqual({
+      type: "left_jail",
+      method: "rolled_doubles",
+    });
+  });
+
+  it("uses a community chest Get Out of Jail Free card", () => {
+    const state = makeState();
+    state.players[0].position = 10;
+    state.players[0].inJail = true;
+    state.players[0].communityChestGetOutOfJailFreeCards = 1;
+    state.communityChestGetOutOfJailFreeAvailable = false;
+
+    const resolved = resolveMonopolyTurn(state, 0, [1, 2], "use_get_out_of_jail_card");
+
+    expect(resolved).not.toBeNull();
+    expect(resolved?.players[0]).toMatchObject({
+      inJail: false,
+      communityChestGetOutOfJailFreeCards: 0,
+    });
+    expect(resolved?.communityChestGetOutOfJailFreeAvailable).toBe(true);
+    expect(resolved?.lastTurnEvents.slice(0, 2)).toStrictEqual([
+      { type: "used_get_out_of_jail_card", deck: "community_chest" },
+      { type: "left_jail", method: "paid_bail" },
+    ]);
+  });
+});
+
+describe("Monopoly board space handling", () => {
+  it("charges income tax and records a paid_tax event", () => {
+    const state = makeState();
+    state.players[0].position = 2; // two steps from Income Tax (space 4)
+
+    const resolved = resolveMonopolyTurn(state, 0, [1, 1]);
+
+    expect(resolved).not.toBeNull();
+    expect(resolved?.players[0]).toMatchObject({ position: 4, money: 1300 });
+    expect(resolved?.lastTurnEvents).toContainEqual(
+      expect.objectContaining({ type: "paid_tax", amount: 200 }),
+    );
+  });
+
+  it("sends a player to jail when they land on the Go To Jail space (space 30)", () => {
+    const state = makeState();
+    state.players[0].position = 24; // six steps from Go To Jail (space 30)
+
+    // [3, 3] are doubles (consecutiveDoubles becomes 1, not 3) so jail is from landing, not triples
+    const resolved = resolveMonopolyTurn(state, 0, [3, 3]);
+
+    expect(resolved).not.toBeNull();
+    expect(resolved?.players[0]).toMatchObject({ position: 10, inJail: true });
+    expect(resolved?.lastTurnEvents).toContainEqual(
+      expect.objectContaining({ type: "sent_to_jail" }),
+    );
+  });
+
+  it("awards $200 when a player passes Go", () => {
+    const state = makeState();
+    state.players[0].position = 38; // three steps from Mediterranean Avenue (pos 1), passing Go
+
+    const resolved = resolveMonopolyTurn(state, 0, [2, 1]);
+
+    expect(resolved).not.toBeNull();
+    expect(resolved?.players[0]).toMatchObject({ position: 1, money: 1700 });
+    expect(resolved?.lastTurnEvents).toContainEqual({ type: "passed_go", amount: 200 });
+  });
+
+  it("records property_purchase_skipped when a player passes on buying", () => {
+    const state = makeState();
+    mockDice([1, 2]); // lands on Baltic Avenue (space 3)
+    const rolled = monopolyLogic.update(state, { type: "roll" }, 0);
+    if (!rolled) throw new Error("Expected roll to succeed");
+    expect(rolled.turnPhase).toBe("awaiting_purchase");
+
+    const passed = monopolyLogic.update(rolled, { type: "pass_property" }, 0);
+
+    expect(passed).not.toBeNull();
+    expect(passed?.turnPhase).toBe("awaiting_end_turn");
+    expect(passed?.lastTurnEvents).toContainEqual(
+      expect.objectContaining({ type: "property_purchase_skipped", spaceName: "Baltic Avenue" }),
+    );
+  });
+});
+
+describe("Monopoly card effects - collect and pay each player", () => {
+  it("collect_from_each_player transfers money from all other players to the active player", () => {
+    const state = makeState(3);
+    state.lastTurnEvents = [];
+
+    applyCardEffect(
+      state,
+      2,
+      { type: "collect_from_each_player", amount: 10, source: "birthday" },
+      "community_chest",
+      state.lastTurnEvents,
+    );
+
+    expect(state.players[2].money).toBe(1520); // received $10 from each of players 0 and 1
+    expect(state.players[0].money).toBe(1490);
+    expect(state.players[1].money).toBe(1490);
+  });
+
+  it("pay_each_player transfers money from the active player to all other players", () => {
+    const state = makeState(2);
+    state.lastTurnEvents = [];
+
+    applyCardEffect(
+      state,
+      0,
+      { type: "pay_each_player", amount: 50, source: "chairman fee" },
+      "chance",
+      state.lastTurnEvents,
+    );
+
+    expect(state.players[0].money).toBe(1450); // paid $50 to player 1
+    expect(state.players[1].money).toBe(1550);
+  });
+
+  it("grants a community chest Get Out of Jail Free card via applyCardEffect", () => {
+    const state = makeState();
+    state.lastTurnEvents = [];
+
+    applyCardEffect(
+      state,
+      0,
+      { type: "get_out_of_jail_free" },
+      "community_chest",
+      state.lastTurnEvents,
+    );
+
+    expect(state.players[0].communityChestGetOutOfJailFreeCards).toBe(1);
+    expect(state.communityChestGetOutOfJailFreeAvailable).toBe(false);
+    expect(state.lastTurnEvents).toContainEqual({
+      type: "received_get_out_of_jail_card",
+      deck: "community_chest",
+    });
+  });
+});
+
+describe("Monopoly community chest deck and teleport path", () => {
+  it("draws a community chest card via landing and applies advance-to-Go (passes Go)", () => {
+    const state = makeState();
+    state.players[0].position = 15; // Pennsylvania Railroad → move 2 to Community Chest (space 17)
+    state.communityChestCursor = 0; // first card: community-advance-go → move to space 0
+
+    const resolved = resolveMonopolyTurn(state, 0, [1, 1]); // move 2 spaces to pos 17
+
+    expect(resolved).not.toBeNull();
+    // After advance-to-go, player is at 0 (passed Go from pos 17 → destination 0 < from 17)
+    expect(resolved?.players[0].position).toBe(0);
+    expect(resolved?.players[0].money).toBe(1700); // 1500 + 200 passing Go
+    expect(resolved?.lastTurnEvents).toContainEqual(
+      expect.objectContaining({ type: "drew_card", deck: "community_chest" }),
+    );
+    expect(resolved?.lastTurnEvents).toContainEqual({ type: "passed_go", amount: 200 });
+  });
+});
+
+describe("Monopoly update() routing - additional cases", () => {
+  it("routes use_get_out_of_jail_card through monopolyLogic.update", () => {
+    const state = makeState();
+    state.players[0].position = 10;
+    state.players[0].inJail = true;
+    state.players[0].chanceGetOutOfJailFreeCards = 1;
+    state.chanceGetOutOfJailFreeAvailable = false;
+
+    const result = monopolyLogic.update(state, { type: "use_get_out_of_jail_card" }, 0);
+
+    expect(result).not.toBeNull();
+    expect(result?.players[0].inJail).toBe(false);
+  });
+
+  it("isDone returns true for a finished game and false for an active game", () => {
+    const finishedState = makeState();
+    finishedState.phase = "finished";
+    expect(monopolyLogic.isDone(finishedState)).toBe(true);
+
+    const activeState = makeState();
+    expect(monopolyLogic.isDone(activeState)).toBe(false);
+  });
+});
+
 describe("Monopoly card and move descriptions", () => {
   it("draws a Get Out of Jail Free card and marks it unavailable in the deck", () => {
     const state = makeState();
