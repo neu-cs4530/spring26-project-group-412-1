@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { type MonopolyGameState, type OwnableSpace } from "@gamenite/shared";
+import {
+  type MonopolyGameState,
+  type MonopolyTurnEvent,
+  type OwnableSpace,
+} from "@gamenite/shared";
 import { applyCardEffect, monopolyLogic, resolveMonopolyTurn } from "../../src/games/monopoly.ts";
 
 function makeState(playerCount = 2): MonopolyGameState {
@@ -846,5 +850,563 @@ describe("Monopoly card and move descriptions", () => {
         0,
       ),
     ).toBe(" mortgaged Reading Railroad for $100");
+  });
+});
+
+describe("Monopoly jail, bankruptcy, and move edge cases", () => {
+  it("bankrupts a jailed player who tries to pay bail without enough money in a 3-player game", () => {
+    const state = makeState(3);
+    state.players[0].position = 10;
+    state.players[0].inJail = true;
+    state.players[0].money = 25;
+
+    const resolved = resolveMonopolyTurn(state, 0, [1, 2], "pay_bail");
+
+    expect(resolved).not.toBeNull();
+    expect(resolved).toMatchObject({
+      phase: "playing",
+      currentPlayerIndex: 1,
+      turnPhase: "awaiting_roll",
+    });
+    expect(resolved?.players[0]).toMatchObject({
+      isBankrupt: true,
+      money: 0,
+      inJail: false,
+    });
+    expect(resolved?.lastTurnEvents).toEqual(
+      expect.arrayContaining([
+        { type: "paid_money", amount: 25, source: "Jail bail" },
+        expect.objectContaining({
+          type: "bankruptcy",
+          playerIndex: 0,
+          creditorIndex: undefined,
+          reason: "Jail bail",
+        }),
+      ]),
+    );
+  });
+
+  it("returns null when a jailed player tries to use a Get Out of Jail Free card they do not have", () => {
+    const state = makeState();
+    state.players[0].position = 10;
+    state.players[0].inJail = true;
+
+    const resolved = resolveMonopolyTurn(state, 0, [1, 2], "use_get_out_of_jail_card");
+
+    expect(resolved).toBeNull();
+  });
+
+  it("describes community chest, skipped purchases, hotels, and unmortgaging", () => {
+    const communityChestState = makeState();
+    communityChestState.players[0].position = 15;
+    communityChestState.communityChestCursor = 0;
+    const chestTurn = resolveMonopolyTurn(communityChestState, 0, [1, 1]);
+    if (!chestTurn) throw new Error("Expected Community Chest turn to resolve");
+
+    expect(
+      monopolyLogic.describeMove(communityChestState, chestTurn, { type: "roll" }, 0),
+    ).toContain('drew Community Chest card "Advance to Go"');
+    expect(
+      monopolyLogic.describeMove(communityChestState, chestTurn, { type: "roll" }, 0),
+    ).toContain("collected $200 for passing Go");
+
+    const purchaseState = makeState();
+    mockDice([1, 2]);
+    const rolled = monopolyLogic.update(purchaseState, { type: "roll" }, 0);
+    if (!rolled) throw new Error("Expected roll to succeed");
+    const passed = monopolyLogic.update(rolled, { type: "pass_property" }, 0);
+    if (!passed) throw new Error("Expected pass to succeed");
+
+    expect(monopolyLogic.describeMove(rolled, passed, { type: "pass_property" }, 0)).toBe(
+      " passed on buying Baltic Avenue",
+    );
+
+    const hotelState = makeState();
+    ownableSpace(hotelState, 1).ownerIndex = 0;
+    ownableSpace(hotelState, 3).ownerIndex = 0;
+    propertySpace(hotelState, 1).houseCount = 4;
+    propertySpace(hotelState, 3).houseCount = 4;
+    hotelState.turnPhase = "awaiting_end_turn";
+
+    const hotel = monopolyLogic.update(hotelState, { type: "build_hotel", spaceId: 1 }, 0);
+    if (!hotel) throw new Error("Expected hotel build to succeed");
+
+    expect(
+      monopolyLogic.describeMove(hotelState, hotel, { type: "build_hotel", spaceId: 1 }, 0),
+    ).toBe(" built a hotel on Mediterranean Avenue for $50");
+
+    const unmortgageState = makeState();
+    ownableSpace(unmortgageState, 5).ownerIndex = 0;
+    ownableSpace(unmortgageState, 5).mortgaged = true;
+    unmortgageState.turnPhase = "awaiting_end_turn";
+
+    const unmortgaged = monopolyLogic.update(
+      unmortgageState,
+      { type: "unmortgage_property", spaceId: 5 },
+      0,
+    );
+    if (!unmortgaged) throw new Error("Expected unmortgage to succeed");
+
+    expect(
+      monopolyLogic.describeMove(
+        unmortgageState,
+        unmortgaged,
+        { type: "unmortgage_property", spaceId: 5 },
+        0,
+      ),
+    ).toBe(" unmortgaged Reading Railroad for $110");
+  });
+
+  it("skips an unavailable Chance jail card and draws the next card instead", () => {
+    const state = makeState();
+    state.players[0].position = 5;
+    state.chanceCursor = 11;
+    state.chanceGetOutOfJailFreeAvailable = false;
+
+    const resolved = resolveMonopolyTurn(state, 0, [1, 1]);
+
+    expect(resolved).not.toBeNull();
+    expect(resolved?.players[0].position).toBe(7);
+    expect(resolved?.players[0].money).toBe(1485);
+    expect(resolved?.lastTurnEvents).toContainEqual(
+      expect.objectContaining({
+        type: "drew_card",
+        deck: "chance",
+        cardText: "Pay poor tax of $15",
+      }),
+    );
+    expect(resolved?.lastTurnEvents).toContainEqual({
+      type: "paid_money",
+      amount: 15,
+      source: "Chance poor tax",
+    });
+
+    const description = monopolyLogic.describeMove(state, resolved!, { type: "roll" }, 0);
+    expect(description).toContain('drew Chance card "Pay poor tax of $15"');
+    expect(description).toContain("paid $15 for Chance poor tax");
+  });
+
+  it("returns null when a jailed player tries to use a Get Out of Jail Free card they do not have", () => {
+    const state = makeState();
+    state.players[0].position = 10;
+    state.players[0].inJail = true;
+
+    const resolved = resolveMonopolyTurn(state, 0, [1, 2], "use_get_out_of_jail_card");
+
+    expect(resolved).toBeNull();
+  });
+
+  it("bankrupts a player who cannot afford bail in a 3-player game", () => {
+    const state = makeState(3);
+    state.players[0].position = 10;
+    state.players[0].inJail = true;
+    state.players[0].money = 25;
+
+    const resolved = resolveMonopolyTurn(state, 0, [1, 2], "pay_bail");
+
+    expect(resolved).not.toBeNull();
+    expect(resolved).toMatchObject({
+      phase: "playing",
+      currentPlayerIndex: 1,
+      turnPhase: "awaiting_roll",
+    });
+    expect(resolved?.players[0]).toMatchObject({
+      money: 0,
+      isBankrupt: true,
+      inJail: false,
+      jailTurns: 0,
+    });
+    expect(resolved?.lastTurnEvents).toEqual(
+      expect.arrayContaining([
+        { type: "paid_money", amount: 25, source: "Jail bail" },
+        expect.objectContaining({
+          type: "bankruptcy",
+          playerIndex: 0,
+          creditorIndex: undefined,
+          reason: "Jail bail",
+        }),
+      ]),
+    );
+
+    const description = monopolyLogic.describeMove(state, resolved!, { type: "pay_bail" }, 0);
+    expect(description).toContain("paid $25 for Jail bail");
+    expect(description).toContain("went bankrupt from Jail bail");
+  });
+
+  it("bankrupts a player on automatic jail bail after a third failed roll", () => {
+    const state = makeState(3);
+    state.players[0].position = 10;
+    state.players[0].inJail = true;
+    state.players[0].jailTurns = 2;
+    state.players[0].money = 25;
+
+    const resolved = resolveMonopolyTurn(state, 0, [1, 2]);
+
+    expect(resolved).not.toBeNull();
+    expect(resolved).toMatchObject({
+      phase: "playing",
+      currentPlayerIndex: 1,
+      turnPhase: "awaiting_roll",
+    });
+    expect(resolved?.players[0]).toMatchObject({
+      money: 0,
+      isBankrupt: true,
+      inJail: false,
+      jailTurns: 0,
+    });
+    expect(resolved?.lastTurnEvents).toEqual(
+      expect.arrayContaining([
+        { type: "rolled", dice: [1, 2] },
+        { type: "paid_bail", amount: 50, automatic: true },
+        expect.objectContaining({
+          type: "bankruptcy",
+          playerIndex: 0,
+          creditorIndex: undefined,
+          reason: "Automatic jail bail",
+        }),
+      ]),
+    );
+
+    const description = monopolyLogic.describeMove(state, resolved!, { type: "roll" }, 0);
+    expect(description).toContain("paid $50 bail after a third failed Jail roll");
+    expect(description).toContain("went bankrupt from Automatic jail bail");
+  });
+
+  it("advances the turn after a non-winning tax bankruptcy", () => {
+    const state = makeState(3);
+    state.players[0].position = 35;
+    state.players[0].money = 50;
+
+    const resolved = resolveMonopolyTurn(state, 0, [1, 2]);
+
+    expect(resolved).not.toBeNull();
+    expect(resolved).toMatchObject({
+      phase: "playing",
+      currentPlayerIndex: 1,
+      turnPhase: "awaiting_roll",
+    });
+    expect(resolved?.players[0]).toMatchObject({
+      money: 0,
+      isBankrupt: true,
+    });
+    expect(resolved?.lastTurnEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "paid_tax",
+          amount: 100,
+          spaceName: "Luxury Tax",
+        }),
+        expect.objectContaining({
+          type: "bankruptcy",
+          playerIndex: 0,
+          creditorIndex: undefined,
+          reason: "Luxury Tax tax",
+        }),
+      ]),
+    );
+
+    const description = monopolyLogic.describeMove(state, resolved!, { type: "roll" }, 0);
+    expect(description).toContain("paid $100 in tax");
+    expect(description).toContain("went bankrupt from Luxury Tax tax");
+  });
+
+  it("stops a pay-each-player card after the payer goes bankrupt", () => {
+    const state = makeState(3);
+    state.players[0].money = 60;
+    state.players[0].chanceGetOutOfJailFreeCards = 1;
+    state.players[0].communityChestGetOutOfJailFreeCards = 1;
+    state.chanceGetOutOfJailFreeAvailable = false;
+    state.communityChestGetOutOfJailFreeAvailable = false;
+    ownableSpace(state, 1).ownerIndex = 0;
+    state.lastTurnEvents = [];
+
+    applyCardEffect(
+      state,
+      0,
+      { type: "pay_each_player", amount: 50, source: "Chance chairman fee" },
+      "chance",
+      state.lastTurnEvents,
+    );
+
+    expect(state.players[0]).toMatchObject({
+      money: 0,
+      isBankrupt: true,
+      chanceGetOutOfJailFreeCards: 0,
+      communityChestGetOutOfJailFreeCards: 0,
+    });
+    expect(state.players[1].money).toBe(1550);
+    expect(state.players[2].money).toBe(1510);
+    expect(ownableSpace(state, 1).ownerIndex).toBe(2);
+    expect(state.chanceGetOutOfJailFreeAvailable).toBe(true);
+    expect(state.communityChestGetOutOfJailFreeAvailable).toBe(true);
+    expect(state.lastTurnEvents).toEqual(
+      expect.arrayContaining([
+        { type: "paid_money", amount: 50, source: "Chance chairman fee" },
+        { type: "received_money", amount: 50, source: "Chance chairman fee" },
+        { type: "paid_money", amount: 10, source: "Chance chairman fee" },
+        { type: "received_money", amount: 10, source: "Chance chairman fee" },
+        expect.objectContaining({
+          type: "bankruptcy",
+          playerIndex: 0,
+          creditorIndex: 2,
+          reason: "Chance chairman fee",
+        }),
+      ]),
+    );
+  });
+
+  it("describes many remaining move-event branches in one test", () => {
+    const describedState = makeState();
+    describedState.lastTurnEvents = [
+      { type: "rolled", dice: [2, 3] },
+      { type: "moved", from: 0, to: 5, destinationName: "Reading Railroad" },
+      { type: "landed", spaceId: 5, spaceName: "Reading Railroad", spaceType: "railroad" },
+      { type: "passed_go", amount: 200 },
+      { type: "paid_tax", amount: 100, spaceId: 38, spaceName: "Luxury Tax" },
+      { type: "received_money", amount: 50, source: "Chance dividend" },
+      {
+        type: "drew_card",
+        deck: "community_chest",
+        cardId: "community-advance-go",
+        cardText: "Advance to Go",
+      },
+      {
+        type: "teleported",
+        from: 17,
+        to: 0,
+        destinationName: "Go",
+        reason: "community_chest",
+      },
+      {
+        type: "sent_to_jail",
+        from: 30,
+        to: 10,
+        destinationName: "Jail",
+      },
+      { type: "stayed_in_jail", turnsRemaining: 2 },
+      { type: "paid_bail", amount: 50, automatic: false },
+      { type: "left_jail", method: "rolled_doubles" },
+      { type: "received_get_out_of_jail_card", deck: "chance" },
+      { type: "used_get_out_of_jail_card", deck: "community_chest" },
+      { type: "property_available", spaceId: 1, spaceName: "Mediterranean Avenue", price: 60 },
+      { type: "property_purchase_skipped", spaceId: 1, spaceName: "Mediterranean Avenue" },
+      { type: "built_hotel", spaceId: 1, spaceName: "Mediterranean Avenue", amount: 50 },
+      { type: "unmortgaged_property", spaceId: 5, spaceName: "Reading Railroad", amount: 110 },
+    ] as MonopolyTurnEvent[];
+
+    const description = monopolyLogic.describeMove(
+      makeState(),
+      describedState,
+      { type: "roll" },
+      0,
+    );
+
+    expect(description).toContain("rolled 5");
+    expect(description).toContain("moved to Reading Railroad");
+    expect(description).toContain("landed on Reading Railroad");
+    expect(description).toContain("collected $200 for passing Go");
+    expect(description).toContain("paid $100 in tax");
+    expect(description).toContain("received $50 from Chance dividend");
+    expect(description).toContain('drew Community Chest card "Advance to Go"');
+    expect(description).toContain("went to Jail");
+    expect(description).toContain("stayed in Jail (2 turns remaining)");
+    expect(description).toContain("paid $50 bail");
+    expect(description).toContain("left Jail by rolling doubles");
+    expect(description).toContain("received a Chance Get Out of Jail Free card");
+    expect(description).toContain("used a Community Chest Get Out of Jail Free card");
+    expect(description).toContain("can buy Mediterranean Avenue for $60");
+    expect(description).toContain("passed on buying Mediterranean Avenue");
+    expect(description).toContain("built a hotel on Mediterranean Avenue for $50");
+    expect(description).toContain("unmortgaged Reading Railroad for $110");
+  });
+});
+
+describe("Monopoly card-effect and fallback branch coverage", () => {
+  it("throws when a property-management move targets a non-ownable board space", () => {
+    const state = makeState();
+    state.turnPhase = "awaiting_end_turn";
+
+    expect(() => monopolyLogic.update(state, { type: "mortgage_property", spaceId: 0 }, 0)).toThrow(
+      "Monopoly space 0 is not ownable",
+    );
+  });
+
+  it("applies direct receive-money and go-to-jail card effects", () => {
+    const receiveState = makeState();
+    receiveState.lastTurnEvents = [];
+
+    applyCardEffect(
+      receiveState,
+      0,
+      { type: "receive_money", amount: 25, source: "bank error" },
+      "community_chest",
+      receiveState.lastTurnEvents,
+    );
+
+    expect(receiveState.players[0].money).toBe(1525);
+    expect(receiveState.lastTurnEvents).toContainEqual({
+      type: "received_money",
+      amount: 25,
+      source: "bank error",
+    });
+
+    const jailState = makeState();
+    jailState.lastTurnEvents = [];
+    jailState.players[0].position = 7;
+
+    applyCardEffect(jailState, 0, { type: "go_to_jail" }, "chance", jailState.lastTurnEvents);
+
+    expect(jailState.players[0]).toMatchObject({
+      position: 10,
+      inJail: true,
+      jailTurns: 0,
+    });
+    expect(jailState.lastTurnEvents).toContainEqual(
+      expect.objectContaining({
+        type: "sent_to_jail",
+        to: 10,
+      }),
+    );
+  });
+
+  it("handles move-by cards and falls back to base rent when house or hotel are missing", () => {
+    const moveByState = makeState();
+    moveByState.players[0].position = 36;
+    moveByState.lastTurnEvents = [];
+
+    applyCardEffect(
+      moveByState,
+      0,
+      { type: "move_by", spaces: -3 },
+      "chance",
+      moveByState.lastTurnEvents,
+    );
+
+    expect(moveByState.players[0].position).toBe(0);
+    expect(moveByState.players[0].money).toBe(1700);
+    expect(moveByState.lastTurnEvents).toContainEqual(
+      expect.objectContaining({
+        type: "moved",
+        to: 33,
+        destinationName: "Community Chest",
+      }),
+    );
+    expect(moveByState.lastTurnEvents).toContainEqual(
+      expect.objectContaining({
+        type: "drew_card",
+        deck: "community_chest",
+      }),
+    );
+
+    const houseState = makeState();
+    ownableSpace(houseState, 1).ownerIndex = 1;
+    propertySpace(houseState, 1).houseCount = 1;
+    propertySpace(houseState, 1).rentSchedule = undefined;
+    houseState.lastTurnEvents = [];
+
+    applyCardEffect(
+      houseState,
+      0,
+      { type: "move_to_space", spaceId: 1 },
+      "chance",
+      houseState.lastTurnEvents,
+    );
+
+    expect(houseState.players[0].money).toBe(1498);
+    expect(houseState.players[1].money).toBe(1502);
+    expect(houseState.lastTurnEvents).toContainEqual(
+      expect.objectContaining({
+        type: "paid_rent",
+        amount: 2,
+        spaceId: 1,
+      }),
+    );
+
+    const hotelState = makeState();
+    ownableSpace(hotelState, 3).ownerIndex = 1;
+    propertySpace(hotelState, 3).hotelCount = 1;
+    propertySpace(hotelState, 3).houseCount = 0;
+    propertySpace(hotelState, 3).rentSchedule = undefined;
+    hotelState.lastTurnEvents = [];
+
+    applyCardEffect(
+      hotelState,
+      0,
+      { type: "move_to_space", spaceId: 3 },
+      "chance",
+      hotelState.lastTurnEvents,
+    );
+
+    expect(hotelState.players[0].money).toBe(1496);
+    expect(hotelState.players[1].money).toBe(1504);
+    expect(hotelState.lastTurnEvents).toContainEqual(
+      expect.objectContaining({
+        type: "paid_rent",
+        amount: 4,
+        spaceId: 3,
+      }),
+    );
+  });
+
+  it("describes the remaining jail and property-management event strings", () => {
+    const automaticBailState = makeState();
+    automaticBailState.lastTurnEvents = [
+      { type: "paid_bail", amount: 50, automatic: true },
+      { type: "left_jail", method: "automatic_bail" },
+    ];
+
+    const automaticBailDescription = monopolyLogic.describeMove(
+      makeState(),
+      automaticBailState,
+      { type: "roll" },
+      0,
+    );
+
+    expect(automaticBailDescription).toContain("paid $50 bail after a third failed Jail roll");
+    expect(automaticBailDescription).toContain("left Jail after paying automatic bail");
+
+    const paidBailState = makeState();
+    paidBailState.lastTurnEvents = [{ type: "left_jail", method: "paid_bail" }];
+
+    expect(
+      monopolyLogic.describeMove(makeState(), paidBailState, { type: "pay_bail" }, 0),
+    ).toContain("left Jail");
+
+    const skippedPurchaseState = makeState();
+    skippedPurchaseState.lastTurnEvents = [
+      { type: "property_purchase_skipped", spaceId: 3, spaceName: "Baltic Avenue" },
+    ];
+
+    expect(
+      monopolyLogic.describeMove(makeState(), skippedPurchaseState, { type: "pass_property" }, 0),
+    ).toContain("passed on buying Baltic Avenue");
+
+    const builtHotelState = makeState();
+    builtHotelState.lastTurnEvents = [
+      { type: "built_hotel", spaceId: 1, spaceName: "Mediterranean Avenue", amount: 50 },
+    ];
+
+    expect(
+      monopolyLogic.describeMove(
+        makeState(),
+        builtHotelState,
+        { type: "build_hotel", spaceId: 1 },
+        0,
+      ),
+    ).toContain("built a hotel on Mediterranean Avenue for $50");
+
+    const unmortgagedState = makeState();
+    unmortgagedState.lastTurnEvents = [
+      { type: "unmortgaged_property", spaceId: 5, spaceName: "Reading Railroad", amount: 110 },
+    ];
+
+    expect(
+      monopolyLogic.describeMove(
+        makeState(),
+        unmortgagedState,
+        { type: "unmortgage_property", spaceId: 5 },
+        0,
+      ),
+    ).toContain("unmortgaged Reading Railroad for $110");
   });
 });

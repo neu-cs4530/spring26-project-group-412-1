@@ -3,11 +3,14 @@ import { enforceAuth } from "../../src/services/auth.service.ts";
 import {
   addMessageToChat,
   addMoveLogToChat,
+  addReactionLogToChat,
   createChat,
   forceChatById,
   getMoveLog,
 } from "../../src/services/chat.service.ts";
 import { createMessage } from "../../src/services/message.service.ts";
+import type { ChatRecord } from "../../src/models.ts";
+import { ChatRepo } from "../../src/repository.ts";
 
 describe("chat.service - addMoveLogToChat", () => {
   it("appends a move log entry and returns the payload", async () => {
@@ -82,5 +85,41 @@ describe("chat.service - addMessageToChat", () => {
     await expect(addMessageToChat("nonexistent-chat-id", user, message.messageId)).rejects.toThrow(
       "invalid chat id",
     );
+  });
+});
+describe("chat.service - reaction log history", () => {
+  it("stores board reactions and expands them when the chat is loaded again", async () => {
+    const user = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const chat = await createChat(new Date("2026-01-02T04:00:00.000Z"));
+    const createdAt = new Date("2026-01-02T04:01:00.000Z");
+
+    await addReactionLogToChat(chat.chatId, "message-1", "👍", user, createdAt);
+
+    const fullChat = await forceChatById(chat.chatId, user);
+    expect(fullChat.reactionLog).toHaveLength(1);
+    expect(fullChat.reactionLog[0]).toMatchObject({
+      messageId: "message-1",
+      emoji: "👍",
+      user: expect.objectContaining({ username: "user1" }),
+    });
+    expect(fullChat.reactionLog[0].createdAt).toEqual(createdAt);
+  });
+
+  it("treats older chats with no stored reactionLog as empty and rejects bad chat ids", async () => {
+    const user = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const chat = await createChat(new Date("2026-01-02T05:00:00.000Z"));
+
+    await ChatRepo.set(chat.chatId, {
+      createdAt: new Date("2026-01-02T05:00:00.000Z").toISOString(),
+      messages: [],
+      moveLog: [],
+    } as unknown as ChatRecord);
+
+    const fullChat = await forceChatById(chat.chatId, user);
+    expect(fullChat.reactionLog).toStrictEqual([]);
+
+    await expect(
+      addReactionLogToChat("missing-chat-id", "message-1", "👍", user, new Date()),
+    ).rejects.toThrow("invalid chat id");
   });
 });
