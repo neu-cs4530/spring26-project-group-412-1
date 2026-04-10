@@ -50,6 +50,9 @@ export async function createGame(
   user: UserWithId,
   type: GameKey,
   createdAt: Date,
+  settings?: {
+    startingMoney?: number;
+  },
 ): Promise<GameInfo> {
   const chat = await createChat(createdAt);
   const gameId = await GameRepo.add({
@@ -59,6 +62,7 @@ export async function createGame(
     createdAt: createdAt.toISOString(),
     createdBy: user.userId,
     players: [user.userId],
+    settings,
   });
   return populateGameInfo(gameId);
 }
@@ -131,7 +135,32 @@ export async function startGame(gameId: string, user: UserWithId): Promise<GameV
     if (!game.players.some((userId) => userId === user.userId)) {
       throw new Error(`user ${user.username} starting game they're not in`);
     }
-    const { state, views } = gameServices[key].create(game.players);
+    let { state, views } = gameServices[key].create(game.players);
+
+    if (key === "monopoly" && typeof game.settings?.startingMoney === "number") {
+      const configuredStartingMoney = game.settings.startingMoney;
+
+      const monopolyState = state as {
+        players: {
+          money: number;
+        }[];
+      };
+
+      monopolyState.players = monopolyState.players.map((player) => ({
+        ...player,
+        money: configuredStartingMoney,
+      }));
+
+      state = monopolyState;
+
+      views = {
+        watchers: gameServices[key].view(state, -1),
+        players: game.players.map((userId, index) => ({
+          userId,
+          view: gameServices[key].view(state, index),
+        })),
+      };
+    }
 
     game.state = state;
     await GameRepo.set(gameId, game);
