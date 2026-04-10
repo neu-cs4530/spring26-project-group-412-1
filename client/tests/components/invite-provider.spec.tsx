@@ -57,7 +57,7 @@ function renderProvider() {
 }
 
 function getSocketHandler(event: string): ((...args: unknown[]) => void) | undefined {
-  const call = mockSocket.on.mock.calls.find(([e]: [string]) => e === event);
+  const call = mockSocket.on.mock.calls.find((args) => args[0] === event);
   return call?.[1] as ((...args: unknown[]) => void) | undefined;
 }
 
