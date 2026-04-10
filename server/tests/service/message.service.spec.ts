@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { enforceAuth } from "../../src/services/auth.service.ts";
 import { createMessage, toggleMessageReaction } from "../../src/services/message.service.ts";
-import { MessageRepo } from "../../src/repository.ts";
 
 describe("message.service reactions", () => {
   it("creates a message with an empty reactions array", async () => {
