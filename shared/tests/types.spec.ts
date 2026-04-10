@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  zInviteInfo,
-  zToggleMessageReactionRequest,
-  zBoardReactionRequest,
-} from "../src/index.ts";
+import { zInviteInfo, zToggleMessageReactionRequest, zBoardReactionRequest } from "../src/index.ts";
 
 describe("InviteInfo type", () => {
   it("includes inviterUsername and inviteeUsername fields in the schema", () => {

@@ -281,9 +281,7 @@ describe("POST /api/invite/mine - error cases", () => {
   });
 
   it("returns 403 on invalid auth", async () => {
-    response = await supertest(app)
-      .post("/api/invite/mine")
-      .send({ auth: authBad, payload: {} });
+    response = await supertest(app).post("/api/invite/mine").send({ auth: authBad, payload: {} });
     expect(response.status).toBe(403);
   });
 });
@@ -295,9 +293,7 @@ describe("POST /api/invite/sent - error cases", () => {
   });
 
   it("returns 403 on invalid auth", async () => {
-    response = await supertest(app)
-      .post("/api/invite/sent")
-      .send({ auth: authBad, payload: {} });
+    response = await supertest(app).post("/api/invite/sent").send({ auth: authBad, payload: {} });
     expect(response.status).toBe(403);
   });
 });

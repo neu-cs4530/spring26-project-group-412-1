@@ -79,8 +79,8 @@ describe("chat.service - addMessageToChat", () => {
   it("throws when the chat id does not exist", async () => {
     const user = await enforceAuth({ username: "user1", password: "pwd1111" });
     const message = await createMessage(user, "hello", new Date());
-    await expect(
-      addMessageToChat("nonexistent-chat-id", user, message.messageId),
-    ).rejects.toThrow("invalid chat id");
+    await expect(addMessageToChat("nonexistent-chat-id", user, message.messageId)).rejects.toThrow(
+      "invalid chat id",
+    );
   });
 });

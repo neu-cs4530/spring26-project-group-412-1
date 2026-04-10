@@ -253,14 +253,20 @@ describe("socketToggleReaction - removed action", () => {
     await addMessageToChat(chat.chatId, user, message.messageId);
 
     // First toggle: adds the reaction
-    await socketToggleReaction(mockSocket, mockServer)({
+    await socketToggleReaction(
+      mockSocket,
+      mockServer,
+    )({
       auth,
       payload: { chatId: chat.chatId, messageId: message.messageId, emoji: "👍" },
     });
     vi.resetAllMocks();
 
     // Second toggle on the same emoji: removes the reaction
-    await socketToggleReaction(mockSocket, mockServer)({
+    await socketToggleReaction(
+      mockSocket,
+      mockServer,
+    )({
       auth,
       payload: { chatId: chat.chatId, messageId: message.messageId, emoji: "👍" },
     });

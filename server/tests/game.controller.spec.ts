@@ -84,10 +84,7 @@ describe("socketWatch", () => {
 
     await socketWatch(mockSocket, mockServer)({ auth: badAuth, payload: game.gameId });
 
-    expect(logSocketError).toHaveBeenCalledExactlyOnceWith(
-      mockSocket,
-      new Error("Invalid auth"),
-    );
+    expect(logSocketError).toHaveBeenCalledExactlyOnceWith(mockSocket, new Error("Invalid auth"));
   });
 });
 
@@ -111,10 +108,7 @@ describe("socketJoinAsPlayer", () => {
 
     await socketJoinAsPlayer(mockSocket, mockServer)({ auth: badAuth, payload: game.gameId });
 
-    expect(logSocketError).toHaveBeenCalledExactlyOnceWith(
-      mockSocket,
-      new Error("Invalid auth"),
-    );
+    expect(logSocketError).toHaveBeenCalledExactlyOnceWith(mockSocket, new Error("Invalid auth"));
   });
 });
 
@@ -139,10 +133,7 @@ describe("socketStart", () => {
 
     await socketStart(mockSocket, mockServer)({ auth: badAuth, payload: game.gameId });
 
-    expect(logSocketError).toHaveBeenCalledExactlyOnceWith(
-      mockSocket,
-      new Error("Invalid auth"),
-    );
+    expect(logSocketError).toHaveBeenCalledExactlyOnceWith(mockSocket, new Error("Invalid auth"));
   });
 });
 
@@ -154,7 +145,10 @@ describe("socketMakeMove", () => {
     await joinGame(game.gameId, joiner);
     await startGame(game.gameId, host);
 
-    await socketMakeMove(mockSocket, mockServer)({
+    await socketMakeMove(
+      mockSocket,
+      mockServer,
+    )({
       auth: auth1,
       payload: { gameId: game.gameId, move: 1 },
     });
@@ -171,14 +165,14 @@ describe("socketMakeMove", () => {
     await joinGame(game.gameId, joiner);
     await startGame(game.gameId, host);
 
-    await socketMakeMove(mockSocket, mockServer)({
+    await socketMakeMove(
+      mockSocket,
+      mockServer,
+    )({
       auth: badAuth,
       payload: { gameId: game.gameId, move: 1 },
     });
 
-    expect(logSocketError).toHaveBeenCalledExactlyOnceWith(
-      mockSocket,
-      new Error("Invalid auth"),
-    );
+    expect(logSocketError).toHaveBeenCalledExactlyOnceWith(mockSocket, new Error("Invalid auth"));
   });
 });
