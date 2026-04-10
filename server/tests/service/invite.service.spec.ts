@@ -413,3 +413,89 @@ describe("invite.service", () => {
     ]);
   });
 });
+
+describe("invite.service - host, expiry, and history edge cases", () => {
+  it("blocks non-host senders and blocks invites once the room has started", async () => {
+    const host = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const nonHost = await enforceAuth({ username: "user2", password: "pwd2222" });
+    const extraPlayer = await enforceAuth({ username: "user3", password: "pwd3333" });
+    const now = new Date("2026-01-02T00:00:00.000Z");
+
+    const waitingGame = await createGame(host, "guess", now);
+    await expect(createInvite(nonHost, waitingGame.gameId, "user3", now)).rejects.toThrow(
+      "Only the room host can send invites",
+    );
+
+    const monopolyGame = await createGame(host, "monopoly", now);
+    await joinGame(monopolyGame.gameId, extraPlayer);
+    await startGame(monopolyGame.gameId, host);
+
+    await expect(createInvite(host, monopolyGame.gameId, "user2", now)).rejects.toThrow(
+      "Cannot invite to an active game",
+    );
+  });
+
+  it("filters deleted and terminal invites out of the inviter's actionable list", async () => {
+    const host = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const now = new Date("2026-01-02T01:00:00.000Z");
+    const later = new Date("2026-01-02T01:01:00.000Z");
+
+    const game = await createGame(host, "guess", now);
+
+    const pendingInvite = await createInvite(host, game.gameId, "user2", now);
+    const canceledInvite = await createInvite(host, game.gameId, "user3", later);
+
+    await InviteRepo.remove(pendingInvite.inviteId);
+    await cancelInvite(canceledInvite.inviteId, host, later);
+
+    const actionable = await getInvitesForInviter(host, later, false);
+    expect(actionable).toStrictEqual([]);
+  });
+
+  it("marks an invite expired if the room started before the invitee accepted", async () => {
+    const host = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const invitee = await enforceAuth({ username: "user2", password: "pwd2222" });
+    const extraPlayer = await enforceAuth({ username: "user3", password: "pwd3333" });
+    const now = new Date("2026-01-02T02:00:00.000Z");
+    const later = new Date("2026-01-02T02:01:00.000Z");
+
+    const game = await createGame(host, "monopoly", now);
+    const invite = await createInvite(host, game.gameId, "user2", now);
+
+    await joinGame(game.gameId, extraPlayer);
+    await startGame(game.gameId, host);
+
+    await expect(acceptInvite(invite.inviteId, invitee, later)).rejects.toThrow(
+      "joining game that started",
+    );
+
+    const history = await getInvitesForInvitee(invitee, later, true);
+    expect(history).toHaveLength(1);
+    expect(history[0].status).toBe("expired");
+  });
+
+  it("rejects decline or cancel after the invite is no longer pending", async () => {
+    const host = await enforceAuth({ username: "user1", password: "pwd1111" });
+    const invitee = await enforceAuth({ username: "user2", password: "pwd2222" });
+    const now = new Date("2026-01-02T03:00:00.000Z");
+
+    const game = await createGame(host, "guess", now);
+
+    const declinedInvite = await createInvite(host, game.gameId, "user2", now);
+    await declineInvite(declinedInvite.inviteId, invitee, now);
+    await expect(declineInvite(declinedInvite.inviteId, invitee, now)).rejects.toThrow(
+      "Invite is declined",
+    );
+
+    const canceledInvite = await createInvite(
+      host,
+      game.gameId,
+      "user3",
+      new Date(now.getTime() + 60_000),
+    );
+    await cancelInvite(canceledInvite.inviteId, host, now);
+    await expect(cancelInvite(canceledInvite.inviteId, host, now)).rejects.toThrow(
+      "Invite is canceled",
+    );
+  });
+});
